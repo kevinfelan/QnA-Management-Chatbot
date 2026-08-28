@@ -171,6 +171,23 @@ export function IconArrowRight({ className }: { className?: string }) {
   );
 }
 
+export function IconSend({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4Z" />
+    </svg>
+  );
+}
+
 export function IconLogout({ className }: { className?: string }) {
   return (
     <svg

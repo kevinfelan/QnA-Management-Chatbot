@@ -20,6 +20,12 @@ publik).
 - **Database Project** — daftar project/properti (nama cluster, daerah, spec,
   foto & video). Upload foto/video langsung dari form, otomatis tersimpan ke
   Supabase Storage dan link-nya masuk ke Google Sheets.
+- **Test Chat** — simulasi chat ala WhatsApp (in-app, tidak mengirim pesan
+  ke mana pun) untuk cek apakah pencocokan kata kunci ke jawaban QnA sudah
+  benar sebelum dipakai chatbot asli. Cari kecocokan kata kunci (substring,
+  case-insensitive) di antara QnA yang aktif; kalau ada beberapa yang cocok,
+  dipilih yang jumlah kata kunci cocoknya paling banyak. Tampilkan info kata
+  kunci yang match, cluster, dan kategori di bawah jawaban buat debug.
 - **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses
   oleh user dengan role `admin`.
 

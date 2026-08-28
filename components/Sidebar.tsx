@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconDashboard, IconEdit, IconBuilding, IconShield, IconRobotLogo } from "./icons";
+import {
+  IconDashboard,
+  IconEdit,
+  IconBuilding,
+  IconMessage,
+  IconShield,
+  IconRobotLogo,
+} from "./icons";
 
 const BASE_ITEMS = [
   { href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
   { href: "/dashboard/qna", label: "Input QnA", Icon: IconEdit },
   { href: "/dashboard/projects", label: "Database Project", Icon: IconBuilding },
+  { href: "/dashboard/test-chat", label: "Test Chat", Icon: IconMessage },
 ];
 
 const ADMIN_ITEM = { href: "/dashboard/admin", label: "Admin", Icon: IconShield };
