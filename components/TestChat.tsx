@@ -122,38 +122,47 @@ function handleMediaRequest(
   projects: ProjectRow[],
   activeCluster: string | null
 ): SegmentResult {
-  const mentioned = findProjectByMention(segment, projects);
-  const target =
-    mentioned ||
-    (activeCluster
-      ? projects.find(
-          (p) => p.nama_cluster.trim().toLowerCase() === activeCluster.toLowerCase()
-        ) ?? null
-      : null);
+  const targetClusterName = findProjectByMention(segment, projects)?.nama_cluster ?? activeCluster;
 
-  if (!target) {
+  if (!targetClusterName) {
     return {
       text: `Properti yang mana ya kak? Boleh sebutkan nama cluster-nya dulu baru aku kirimkan ${kind}-nya.`,
     };
   }
 
-  const urls = parseUrls(kind === "foto" ? target.foto_url : target.video_url);
+  const targets = projects.filter(
+    (p) => p.nama_cluster.trim().toLowerCase() === targetClusterName.toLowerCase()
+  );
+  const withMedia = targets.filter(
+    (p) => parseUrls(kind === "foto" ? p.foto_url : p.video_url).length > 0
+  );
 
-  if (urls.length === 0) {
+  if (withMedia.length === 0) {
     return {
-      text: `Waduh, ${kind} untuk ${target.nama_cluster} belum ada di database kak, nanti aku infokan ke tim ya.`,
-      cluster: target.nama_cluster,
+      text: `Waduh, ${kind} untuk ${targetClusterName} belum ada di database kak, nanti aku infokan ke tim ya.`,
+      cluster: targetClusterName,
     };
   }
 
+  const images: string[] = [];
+  const introLine =
+    kind === "foto"
+      ? `Ini fotonya ya kak, unit di ${targetClusterName}:`
+      : `Ini videonya ya kak, unit di ${targetClusterName}:`;
+  const detailLines = withMedia.map((p, i) => {
+    const urls = parseUrls(kind === "foto" ? p.foto_url : p.video_url);
+    if (kind === "foto") images.push(...urls);
+    return `Unit ${i + 1}${p.spec ? ` — ${p.spec}` : ""}`;
+  });
+
   return {
-    text:
-      kind === "foto"
-        ? `Ini fotonya ya kak, unit di ${target.nama_cluster}. 😊`
-        : `Ini videonya ya kak, unit di ${target.nama_cluster}. 🎬`,
-    images: kind === "foto" ? urls : undefined,
-    meta: kind === "video" ? urls.join(", ") : undefined,
-    cluster: target.nama_cluster,
+    text: [introLine, ...detailLines].join("\n"),
+    images: kind === "foto" ? images : undefined,
+    meta:
+      kind === "video"
+        ? withMedia.flatMap((p) => parseUrls(p.video_url)).join(", ")
+        : undefined,
+    cluster: targetClusterName,
   };
 }
 
