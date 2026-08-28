@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     kategori: body.kategori || "",
     aktif: body.aktif !== undefined ? Boolean(body.aktif) : true,
     updated_by: session.user.email || "",
+    nama_cluster: body.nama_cluster || "",
   };
 
   try {

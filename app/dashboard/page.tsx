@@ -1,4 +1,5 @@
 import { listProjects, listQna } from "@/lib/sheets";
+import GlobalSearch from "@/components/GlobalSearch";
 
 export default async function DashboardOverviewPage() {
   const [qna, projects] = await Promise.all([listQna(), listProjects()]);
@@ -41,6 +42,11 @@ export default async function DashboardOverviewPage() {
             <p className="mt-1 text-sm text-ink/60">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="font-heading text-lg font-semibold text-navy">Pencarian</h2>
+        <GlobalSearch qna={qna} projects={projects} />
       </div>
     </div>
   );

@@ -9,9 +9,14 @@ publik).
 
 ## Modul
 
-- **Dashboard** — ringkasan jumlah kata kunci unik, pertanyaan tersimpan, dan
-  kategori (format jawaban) yang dipakai.
-- **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp.
+- **Dashboard** — ringkasan jumlah kata kunci unik, pertanyaan tersimpan,
+  kategori (format jawaban), dan jumlah database properti. Ada search bar
+  yang cari lintas data QnA (kata kunci, pertanyaan, jawaban, kategori,
+  cluster) dan Database Project (nama cluster, daerah, spec) sekaligus.
+- **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp, dikelompokkan
+  per cluster (accordion, sama seperti Database Project) karena tiap cluster
+  bisa punya format jawaban berbeda. Field Kategori berupa dropdown
+  autocomplete dari kategori yang sudah pernah dipakai di cluster manapun.
 - **Database Project** — daftar project/properti (nama cluster, daerah, spec,
   foto & video). Upload foto/video langsung dari form, otomatis tersimpan ke
   Supabase Storage dan link-nya masuk ke Google Sheets.
@@ -109,6 +114,11 @@ modul Admin di dalam app.
 | F     | aktif              | `TRUE` / `FALSE`            |
 | G     | updated_by         | email user yang mengubah    |
 | H     | updated_at         | ISO timestamp               |
+| I     | nama_cluster       | opsional; kosong = QnA umum, tidak spesifik ke satu cluster |
+
+> Kolom A-H adalah skema asli yang dibaca chatbot WhatsApp — **tidak diubah**.
+> Kolom I ditambahkan belakangan khusus untuk grouping di app ini; chatbot
+> WhatsApp yang cuma baca A-H tidak terpengaruh.
 
 ### Tab `Projects` (header row 1, data mulai row 2)
 

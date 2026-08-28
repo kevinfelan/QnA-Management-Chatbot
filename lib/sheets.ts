@@ -9,6 +9,7 @@ export type QnaRow = {
   aktif: boolean;
   updated_by: string;
   updated_at: string;
+  nama_cluster: string;
 };
 
 export type QnaInput = {
@@ -18,6 +19,7 @@ export type QnaInput = {
   kategori: string;
   aktif: boolean;
   updated_by: string;
+  nama_cluster: string;
 };
 
 export type ProjectRow = {
@@ -41,7 +43,9 @@ export type ProjectInput = {
 };
 
 const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
-const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:H`;
+// Kolom A-H adalah skema asli yang dibaca chatbot WhatsApp (jangan diubah).
+// Kolom I (nama_cluster) ditambahkan belakangan, hanya dipakai app ini.
+const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:I`;
 
 const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
 const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:H`;
@@ -123,7 +127,7 @@ async function deleteRow(sheetName: string, sheetRow: number): Promise<void> {
 // ---------- QnA ----------
 
 function rowToQna(row: string[]): QnaRow | null {
-  const [id, kata_kunci, pertanyaan_sample, jawaban, kategori, aktif, updated_by, updated_at] =
+  const [id, kata_kunci, pertanyaan_sample, jawaban, kategori, aktif, updated_by, updated_at, nama_cluster] =
     row;
 
   if (!id) {
@@ -138,6 +142,7 @@ function rowToQna(row: string[]): QnaRow | null {
     kategori: kategori || "",
     aktif: (aktif || "").toString().trim().toUpperCase() === "TRUE",
     updated_by: updated_by || "",
+    nama_cluster: nama_cluster || "",
     updated_at: updated_at || "",
   };
 }
@@ -181,6 +186,7 @@ function qnaToRowValues(id: string, data: QnaInput, updatedAt: string): string[]
     data.aktif ? "TRUE" : "FALSE",
     data.updated_by,
     updatedAt,
+    data.nama_cluster,
   ];
 }
 
@@ -208,6 +214,7 @@ export async function addQna(data: QnaInput): Promise<QnaRow> {
     aktif: data.aktif,
     updated_by: data.updated_by,
     updated_at,
+    nama_cluster: data.nama_cluster,
   };
 }
 
@@ -230,7 +237,7 @@ export async function updateQna(id: string, data: QnaInput): Promise<QnaRow> {
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
-    range: `${QNA_SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
+    range: `${QNA_SHEET_NAME}!A${sheetRow}:I${sheetRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [qnaToRowValues(id, data, updated_at)],
@@ -246,6 +253,7 @@ export async function updateQna(id: string, data: QnaInput): Promise<QnaRow> {
     aktif: data.aktif,
     updated_by: data.updated_by,
     updated_at,
+    nama_cluster: data.nama_cluster,
   };
 }
 

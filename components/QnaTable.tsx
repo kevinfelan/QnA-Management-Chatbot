@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { QnaRow } from "@/lib/sheets";
 import QnaForm, { type QnaFormValues } from "./QnaForm";
 
@@ -8,9 +8,30 @@ type QnaTableProps = {
   initialData: QnaRow[];
 };
 
+type ClusterGroup = {
+  key: string;
+  label: string;
+  rows: QnaRow[];
+};
+
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max).trimEnd() + "...";
+}
+
+function groupByCluster(rows: QnaRow[]): ClusterGroup[] {
+  const map = new Map<string, ClusterGroup>();
+
+  for (const row of rows) {
+    const label = row.nama_cluster.trim() || "Umum";
+    const key = label.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { key, label, rows: [] });
+    }
+    map.get(key)!.rows.push(row);
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 async function apiCall<T>(url: string, options?: RequestInit): Promise<T> {
@@ -31,6 +52,35 @@ export default function QnaTable({ initialData }: QnaTableProps) {
   const [editingRow, setEditingRow] = useState<QnaRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+
+  const groups = useMemo(() => groupByCluster(rows), [rows]);
+  const clusterNames = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.nama_cluster.trim()).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [rows]
+  );
+  const kategoriNames = useMemo(
+    () =>
+      Array.from(new Set(rows.map((r) => r.kategori.trim()).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [rows]
+  );
+
+  function toggleCluster(key: string) {
+    setOpenClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   function openCreateForm() {
     setEditingRow(null);
@@ -64,6 +114,11 @@ export default function QnaTable({ initialData }: QnaTableProps) {
           body: JSON.stringify(values),
         });
         setRows((prev) => [...prev, created]);
+        setOpenClusters((prev) => {
+          const next = new Set(prev);
+          next.add((created.nama_cluster.trim() || "Umum").toLowerCase());
+          return next;
+        });
       }
       closeForm();
     } catch (err) {
@@ -107,67 +162,105 @@ export default function QnaTable({ initialData }: QnaTableProps) {
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-navy/10 bg-white">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-navy/10 bg-navy/5 text-xs uppercase tracking-wide text-navy/70">
-              <th className="px-4 py-3 font-semibold">Kata Kunci</th>
-              <th className="px-4 py-3 font-semibold">Pertanyaan</th>
-              <th className="px-4 py-3 font-semibold">Kategori</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-ink/50">
-                  Belum ada data QnA.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-navy/5 last:border-0">
-                <td className="px-4 py-3 align-top text-ink/80">
-                  {truncate(row.kata_kunci, 40)}
-                </td>
-                <td className="px-4 py-3 align-top text-ink/80">
-                  {truncate(row.pertanyaan_sample, 60)}
-                </td>
-                <td className="px-4 py-3 align-top text-ink/80">{row.kategori}</td>
-                <td className="px-4 py-3 align-top">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      row.aktif
-                        ? "bg-teal/10 text-teal"
-                        : "bg-ink/10 text-ink/60"
+      {groups.length === 0 ? (
+        <div className="rounded-lg border border-navy/10 bg-white px-4 py-8 text-center text-ink/50">
+          Belum ada data QnA.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {groups.map((group) => {
+            const isOpen = openClusters.has(group.key);
+            return (
+              <div
+                key={group.key}
+                className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+              >
+                <button
+                  onClick={() => toggleCluster(group.key)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-navy/5"
+                >
+                  <span className="font-heading font-semibold text-navy">
+                    {group.label}{" "}
+                    <span className="text-sm font-normal text-ink/50">
+                      ({group.rows.length} QnA)
+                    </span>
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`h-5 w-5 shrink-0 text-navy/60 transition-transform ${
+                      isOpen ? "rotate-180" : ""
                     }`}
                   >
-                    {row.aktif ? "Aktif" : "Nonaktif"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 align-top text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => openEditForm(row)}
-                      className="rounded-md border border-navy/20 px-3 py-1 text-xs font-medium text-navy hover:bg-navy/5"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(row)}
-                      disabled={pendingDeleteId === row.id}
-                      className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {pendingDeleteId === row.id ? "Menghapus..." : "Hapus"}
-                    </button>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {isOpen && (
+                  <div className="overflow-x-auto border-t border-navy/10">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-navy/10 bg-navy/5 text-xs uppercase tracking-wide text-navy/70">
+                          <th className="px-4 py-3 font-semibold">Kata Kunci</th>
+                          <th className="px-4 py-3 font-semibold">Pertanyaan</th>
+                          <th className="px-4 py-3 font-semibold">Kategori</th>
+                          <th className="px-4 py-3 font-semibold">Status</th>
+                          <th className="px-4 py-3 font-semibold text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.rows.map((row) => (
+                          <tr key={row.id} className="border-b border-navy/5 last:border-0">
+                            <td className="px-4 py-3 align-top text-ink/80">
+                              {truncate(row.kata_kunci, 40)}
+                            </td>
+                            <td className="px-4 py-3 align-top text-ink/80">
+                              {truncate(row.pertanyaan_sample, 60)}
+                            </td>
+                            <td className="px-4 py-3 align-top text-ink/80">{row.kategori}</td>
+                            <td className="px-4 py-3 align-top">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  row.aktif
+                                    ? "bg-teal/10 text-teal"
+                                    : "bg-ink/10 text-ink/60"
+                                }`}
+                              >
+                                {row.aktif ? "Aktif" : "Nonaktif"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 align-top text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => openEditForm(row)}
+                                  className="rounded-md border border-navy/20 px-3 py-1 text-xs font-medium text-navy hover:bg-navy/5"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(row)}
+                                  disabled={pendingDeleteId === row.id}
+                                  className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {pendingDeleteId === row.id ? "Menghapus..." : "Hapus"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {formOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4">
@@ -177,6 +270,8 @@ export default function QnaTable({ initialData }: QnaTableProps) {
             </h3>
             <QnaForm
               initialData={editingRow ?? undefined}
+              existingClusters={clusterNames}
+              existingKategori={kategoriNames}
               onSubmit={handleFormSubmit}
               onCancel={closeForm}
             />
