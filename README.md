@@ -32,6 +32,12 @@ publik).
   tetap sama seperti sebelumnya: substring case-insensitive terhadap
   `kata_kunci` QnA yang aktif, skor tertinggi menang. Info kata kunci yang
   match, cluster, dan kategori ditampilkan di bawah tiap jawaban buat debug.
+  Ivy juga bisa share foto/video properti dari Database Project kalau diminta
+  (kata kunci "foto"/"gambar"/"video"/dst) — dia melacak cluster yang lagi
+  dibahas dalam percakapan (dari QnA match terakhir atau nama cluster yang
+  disebut eksplisit), jadi bisa jawab "boleh minta foto rumahnya?" tanpa perlu
+  sebut ulang nama cluster-nya. Foto ditampilkan langsung sebagai gambar di
+  chat bubble.
   (Catatan: ini simulasi rule-based, bukan LLM asli — approksimasi persona,
   bukan pemahaman bahasa natural sungguhan.)
 - **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses

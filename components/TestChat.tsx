@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { QnaRow } from "@/lib/sheets";
+import type { ProjectRow, QnaRow } from "@/lib/sheets";
 import { IconSend, IconUser } from "./icons";
 
 type ChatMessage = {
@@ -9,6 +9,7 @@ type ChatMessage = {
   sender: "user" | "bot";
   text: string;
   meta?: string;
+  images?: string[];
 };
 
 type MatchResult = {
@@ -35,6 +36,16 @@ const ANGER_KEYWORDS = [
   "gak profesional",
 ];
 
+const PHOTO_KEYWORDS = ["foto", "fotonya", "gambar", "gambarnya", "poto", "picture", "penampakan"];
+const VIDEO_KEYWORDS = ["video", "videonya", "vidio", "rekaman"];
+
+function parseUrls(value: string): string[] {
+  return value
+    .split(",")
+    .map((u) => u.trim())
+    .filter(Boolean);
+}
+
 function findBestMatch(segment: string, rows: QnaRow[]): MatchResult | null {
   const lowerSeg = segment.toLowerCase();
   let best: (MatchResult & { score: number }) | null = null;
@@ -54,6 +65,16 @@ function findBestMatch(segment: string, rows: QnaRow[]): MatchResult | null {
   }
 
   return best ? { row: best.row, matchedKeywords: best.matchedKeywords } : null;
+}
+
+function findProjectByMention(segment: string, projects: ProjectRow[]): ProjectRow | null {
+  const lower = segment.toLowerCase();
+  return (
+    projects.find((p) => {
+      const cluster = p.nama_cluster.trim().toLowerCase();
+      return cluster && lower.includes(cluster);
+    }) || null
+  );
 }
 
 // pisah pesan jadi beberapa "pertanyaan" berdasarkan tanda tanya/baris baru,
@@ -88,42 +109,131 @@ function metaFor(match: MatchResult): string {
   return parts.join(" • ");
 }
 
-function buildReply(message: string, rows: QnaRow[]): { text: string; meta?: string } {
-  const questions = splitQuestions(message);
-  const answered: string[] = [];
-  const metaParts: string[] = [];
+type SegmentResult = {
+  text: string;
+  images?: string[];
+  meta?: string;
+  cluster?: string;
+};
 
-  for (const question of questions) {
-    const match = findBestMatch(question, rows);
-    if (match) {
-      answered.push(applyIvyVoice(match.row.jawaban));
-      metaParts.push(metaFor(match));
-    } else {
-      answered.push(FALLBACK_TEXT);
-    }
+function handleMediaRequest(
+  segment: string,
+  kind: "foto" | "video",
+  projects: ProjectRow[],
+  activeCluster: string | null
+): SegmentResult {
+  const mentioned = findProjectByMention(segment, projects);
+  const target =
+    mentioned ||
+    (activeCluster
+      ? projects.find(
+          (p) => p.nama_cluster.trim().toLowerCase() === activeCluster.toLowerCase()
+        ) ?? null
+      : null);
+
+  if (!target) {
+    return {
+      text: `Properti yang mana ya kak? Boleh sebutkan nama cluster-nya dulu baru aku kirimkan ${kind}-nya.`,
+    };
   }
 
-  // dedupe jawaban identik berturut-turut (kalau beberapa segmen match row yang sama)
+  const urls = parseUrls(kind === "foto" ? target.foto_url : target.video_url);
+
+  if (urls.length === 0) {
+    return {
+      text: `Waduh, ${kind} untuk ${target.nama_cluster} belum ada di database kak, nanti aku infokan ke tim ya.`,
+      cluster: target.nama_cluster,
+    };
+  }
+
+  return {
+    text:
+      kind === "foto"
+        ? `Ini fotonya ya kak, unit di ${target.nama_cluster}. 😊`
+        : `Ini videonya ya kak, unit di ${target.nama_cluster}. 🎬`,
+    images: kind === "foto" ? urls : undefined,
+    meta: kind === "video" ? urls.join(", ") : undefined,
+    cluster: target.nama_cluster,
+  };
+}
+
+function handleSegment(
+  segment: string,
+  qnaRows: QnaRow[],
+  projectRows: ProjectRow[],
+  activeCluster: string | null
+): SegmentResult {
+  const lower = segment.toLowerCase();
+
+  if (PHOTO_KEYWORDS.some((k) => lower.includes(k))) {
+    return handleMediaRequest(segment, "foto", projectRows, activeCluster);
+  }
+
+  if (VIDEO_KEYWORDS.some((k) => lower.includes(k))) {
+    return handleMediaRequest(segment, "video", projectRows, activeCluster);
+  }
+
+  const match = findBestMatch(segment, qnaRows);
+  if (match) {
+    return {
+      text: applyIvyVoice(match.row.jawaban),
+      meta: metaFor(match),
+      cluster: match.row.nama_cluster || undefined,
+    };
+  }
+
+  return { text: FALLBACK_TEXT };
+}
+
+function buildReply(
+  message: string,
+  qnaRows: QnaRow[],
+  projectRows: ProjectRow[],
+  activeCluster: string | null
+): { text: string; images: string[]; meta?: string; nextActiveCluster: string | null } {
+  const questions = splitQuestions(message);
+  const answered: string[] = [];
+  const images: string[] = [];
+  const metaParts: string[] = [];
+  let cluster = activeCluster;
+
+  for (const question of questions) {
+    const result = handleSegment(question, qnaRows, projectRows, cluster);
+    answered.push(result.text);
+    if (result.images) images.push(...result.images);
+    if (result.meta) metaParts.push(result.meta);
+    if (result.cluster) cluster = result.cluster;
+  }
+
   const deduped = answered.filter((text, i) => text !== answered[i - 1]);
 
   const angry = detectAnger(message);
   const apology = "Aduh, maaf banget ya kak atas ketidaknyamanannya. 🙏";
-
   const text = angry ? [apology, ...deduped].join("\n\n") : deduped.join("\n\n");
 
   return {
     text,
+    images,
     meta: metaParts.length > 0 ? metaParts.join(" | ") : undefined,
+    nextActiveCluster: cluster,
   };
 }
 
-export default function TestChat({ initialData }: { initialData: QnaRow[] }) {
-  const [rows, setRows] = useState<QnaRow[]>(initialData);
+export default function TestChat({
+  initialQna,
+  initialProjects,
+}: {
+  initialQna: QnaRow[];
+  initialProjects: ProjectRow[];
+}) {
+  const [qnaRows, setQnaRows] = useState<QnaRow[]>(initialQna);
+  const [projectRows, setProjectRows] = useState<ProjectRow[]>(initialProjects);
+  const [activeCluster, setActiveCluster] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       sender: "bot",
-      text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus!",
+      text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dan foto/video dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus, atau minta foto/video propertinya!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -137,11 +247,14 @@ export default function TestChat({ initialData }: { initialData: QnaRow[] }) {
   async function refreshData() {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/qna");
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setRows(json.data);
-      }
+      const [qnaRes, projectRes] = await Promise.all([
+        fetch("/api/qna"),
+        fetch("/api/projects"),
+      ]);
+      const qnaJson = await qnaRes.json();
+      const projectJson = await projectRes.json();
+      if (qnaRes.ok && qnaJson.success) setQnaRows(qnaJson.data);
+      if (projectRes.ok && projectJson.success) setProjectRows(projectJson.data);
     } finally {
       setRefreshing(false);
     }
@@ -153,19 +266,21 @@ export default function TestChat({ initialData }: { initialData: QnaRow[] }) {
     if (!text) return;
 
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, sender: "user", text };
-    const reply = buildReply(text, rows);
+    const reply = buildReply(text, qnaRows, projectRows, activeCluster);
     const botMsg: ChatMessage = {
       id: `b-${Date.now()}`,
       sender: "bot",
       text: reply.text,
       meta: reply.meta,
+      images: reply.images.length > 0 ? reply.images : undefined,
     };
 
+    setActiveCluster(reply.nextActiveCluster);
     setMessages((prev) => [...prev, userMsg, botMsg]);
     setInput("");
   }
 
-  const activeCount = rows.filter((r) => r.aktif).length;
+  const activeCount = qnaRows.filter((r) => r.aktif).length;
 
   return (
     <div className="flex h-[calc(100vh-260px)] min-h-[420px] flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
@@ -176,7 +291,10 @@ export default function TestChat({ initialData }: { initialData: QnaRow[] }) {
           </div>
           <div>
             <p className="font-heading text-sm font-semibold">Ivy — Sales Agent CariProperti</p>
-            <p className="text-xs text-white/60">{activeCount} QnA aktif dimuat</p>
+            <p className="text-xs text-white/60">
+              {activeCount} QnA aktif • {projectRows.length} properti
+              {activeCluster ? ` • konteks: ${activeCluster}` : ""}
+            </p>
           </div>
         </div>
         <button
@@ -202,6 +320,19 @@ export default function TestChat({ initialData }: { initialData: QnaRow[] }) {
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.images && msg.images.length > 0 && (
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {msg.images.map((url) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={url}
+                      src={url}
+                      alt="Foto properti"
+                      className="h-24 w-full rounded-lg object-cover"
+                    />
+                  ))}
+                </div>
+              )}
               {msg.meta && (
                 <p
                   className={`mt-1 text-[11px] ${
