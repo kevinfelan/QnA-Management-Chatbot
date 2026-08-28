@@ -1,0 +1,10 @@
+{
+  "name": "QnA Setup - Chatbot Properti",
+  "short_name": "QnA Setup",
+  "description": "Kelola data Tanya-Jawab chatbot WhatsApp properti",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F8F6F2",
+  "theme_color": "#0F2540",
+  "icons": []
+}
