@@ -79,14 +79,18 @@ export function IconRobotLogo({ className }: { className?: string }) {
       strokeLinejoin="round"
       className={className}
     >
-      <circle cx="12" cy="3.2" r="1.1" fill="currentColor" stroke="none" />
-      <line x1="12" y1="4.3" x2="12" y2="6.5" />
-      <rect x="4.5" y="6.5" width="15" height="13" rx="4" />
-      <line x1="2.5" y1="11" x2="4.5" y2="11" />
-      <line x1="19.5" y1="11" x2="21.5" y2="11" />
-      <circle cx="9" cy="12.5" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="12.5" r="1.4" fill="currentColor" stroke="none" />
-      <path d="M9 16.5h6" />
+      {/* antena di atas kepala */}
+      <circle cx="11" cy="2.8" r="1" fill="currentColor" stroke="none" />
+      <line x1="11" y1="3.8" x2="11" y2="5.3" />
+      {/* kepala kotak bulat = badan huruf "O" pada Q */}
+      <rect x="3.5" y="5.3" width="15" height="13.7" rx="5" />
+      {/* mata robot */}
+      <circle cx="8.3" cy="11.5" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="13.7" cy="11.5" r="1.3" fill="currentColor" stroke="none" />
+      {/* mulut */}
+      <path d="M8.5 15h5" />
+      {/* ekor huruf Q */}
+      <path d="M14.5 16.3l3 3" />
     </svg>
   );
 }
