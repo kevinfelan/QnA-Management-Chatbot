@@ -9,11 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: "#0F2540",
-        teal: "#0E7C7B",
+        navy: "#2F4B3C",
+        teal: "#4C7A52",
         gold: "#C9A24B",
-        background: "#F8F6F2",
-        ink: "#1C2530",
+        background: "#F1E7D0",
+        ink: "#3B2A1A",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "sans-serif"],

@@ -4,7 +4,7 @@
   "description": "Kelola data Tanya-Jawab chatbot WhatsApp properti",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#F8F6F2",
-  "theme_color": "#0F2540",
+  "background_color": "#F1E7D0",
+  "theme_color": "#2F4B3C",
   "icons": []
 }
