@@ -13,6 +13,7 @@ export type ProjectFormValues = {
 
 type ProjectFormProps = {
   initialData?: ProjectRow;
+  existingClusters?: string[];
   onSubmit: (values: ProjectFormValues) => Promise<void> | void;
   onCancel: () => void;
 };
@@ -42,6 +43,7 @@ async function uploadFile(file: File): Promise<string> {
 
 export default function ProjectForm({
   initialData,
+  existingClusters = [],
   onSubmit,
   onCancel,
 }: ProjectFormProps) {
@@ -136,10 +138,22 @@ export default function ProjectForm({
         <input
           id="nama_cluster"
           type="text"
+          list="cluster-suggestions"
           value={namaCluster}
           onChange={(e) => setNamaCluster(e.target.value)}
           className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
+        {existingClusters.length > 0 && (
+          <datalist id="cluster-suggestions">
+            {existingClusters.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        )}
+        <p className="text-xs text-ink/50">
+          Pakai nama yang sama persis untuk mengelompokkan beberapa properti
+          dalam satu cluster.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1">
