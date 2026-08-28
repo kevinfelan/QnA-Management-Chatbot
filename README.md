@@ -12,8 +12,9 @@ publik).
 - **Dashboard** — ringkasan jumlah kata kunci unik, pertanyaan tersimpan, dan
   kategori (format jawaban) yang dipakai.
 - **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp.
-- **Database Project** — daftar project/properti (nama, keterangan, link foto
-  Google Drive).
+- **Database Project** — daftar project/properti (nama cluster, daerah, spec,
+  foto & video). Upload foto/video langsung dari form, otomatis tersimpan ke
+  Google Drive dan link-nya masuk ke Google Sheets.
 - **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses
   oleh user dengan role `admin`.
 
@@ -44,6 +45,7 @@ publik).
    GOOGLE_SHEET_ID=
    GOOGLE_QNA_SHEET_NAME=QnA_Setup
    GOOGLE_PROJECTS_SHEET_NAME=Projects
+   GOOGLE_DRIVE_FOLDER_ID=
    ```
 
    - `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` diambil dari
@@ -60,6 +62,14 @@ publik).
      dengan akses Editor. Tab `Projects` dibuat otomatis oleh app kalau belum
      ada (lewat script satu kali, lihat catatan di bawah) — atau bisa dibuat
      manual dengan header sesuai skema di bawah.
+   - **Google Drive API** harus di-enable juga di project Google Cloud yang
+     sama (search "Google Drive API" di Cloud Console → Enable), dipakai
+     untuk upload foto/video di modul Database Project.
+   - `GOOGLE_DRIVE_FOLDER_ID` — **wajib diisi**, ID folder Google Drive
+     tempat foto/video hasil upload disimpan. Service account tidak punya
+     kuota storage sendiri di Drive, jadi harus upload ke folder milik akun
+     Google asli yang di-share ke service account (akses Editor). Ambil ID
+     dari URL folder: `drive.google.com/drive/folders/`**`ID_NYA`**.
 
 3. Jalankan development server:
 
@@ -102,18 +112,23 @@ modul Admin di dalam app.
 
 ### Tab `Projects` (header row 1, data mulai row 2)
 
-| Kolom | Field       | Keterangan                                   |
-| ----- | ----------- | --------------------------------------------- |
-| A     | id          | format `proj-<angka>`                          |
-| B     | nama        | nama project/properti                          |
-| C     | keterangan  | deskripsi                                      |
-| D     | foto_url    | link Google Drive, dipisah koma jika lebih dari satu |
-| E     | updated_by  | email user yang mengubah                       |
-| F     | updated_at  | ISO timestamp                                  |
+| Kolom | Field        | Keterangan                                             |
+| ----- | ------------ | ------------------------------------------------------- |
+| A     | id           | format `proj-<angka>`                                    |
+| B     | nama_cluster | nama cluster/project properti                            |
+| C     | daerah       | lokasi/daerah                                            |
+| D     | spec         | spesifikasi (LT/LB, kamar, harga, dll — free text)        |
+| E     | foto_url     | link Google Drive, dipisah koma jika lebih dari satu      |
+| F     | video_url    | link Google Drive, dipisah koma jika lebih dari satu      |
+| G     | updated_by   | email user yang mengubah                                 |
+| H     | updated_at   | ISO timestamp                                             |
 
-Link foto harus di-share dengan akses **"Anyone with the link"** supaya
-thumbnail-nya bisa tampil di app (app memakai endpoint publik
-`drive.google.com/thumbnail`, tidak lewat Drive API).
+Foto/video di-upload langsung dari form (bukan paste link manual) — app
+meng-upload file ke Google Drive lewat service account, otomatis set
+permission **"Anyone with the link"** supaya thumbnail-nya bisa tampil, lalu
+menyimpan link-nya ke kolom `foto_url`/`video_url`. Maks 4MB per file (batas
+aman ukuran request body di Vercel Serverless Functions) — untuk video yang
+lebih besar, kompres/potong dulu sebelum upload.
 
 ## Deploy
 

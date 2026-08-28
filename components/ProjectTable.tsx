@@ -13,8 +13,8 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max).trimEnd() + "...";
 }
 
-function parseFotoUrls(fotoUrl: string): string[] {
-  return fotoUrl
+function parseUrls(value: string): string[] {
+  return value
     .split(",")
     .map((u) => u.trim())
     .filter(Boolean);
@@ -86,7 +86,7 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
 
   async function handleDelete(row: ProjectRow) {
     const confirmed = window.confirm(
-      `Hapus project "${row.nama}"? Tindakan ini tidak bisa dibatalkan.`
+      `Hapus project "${row.nama_cluster}"? Tindakan ini tidak bisa dibatalkan.`
     );
     if (!confirmed) return;
 
@@ -127,7 +127,8 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((row) => {
-            const fotos = parseFotoUrls(row.foto_url);
+            const fotos = parseUrls(row.foto_url);
+            const videos = parseUrls(row.video_url);
             const thumb = fotos.length > 0 ? driveThumbnail(fotos[0]) : null;
 
             return (
@@ -135,27 +136,40 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
                 key={row.id}
                 className="flex flex-col overflow-hidden rounded-lg border border-navy/10 bg-white"
               >
-                <div className="flex h-36 items-center justify-center bg-navy/5">
+                <div className="relative flex h-36 items-center justify-center bg-navy/5">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={thumb}
-                      alt={row.nama}
+                      alt={row.nama_cluster}
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs text-ink/40">
-                      {fotos.length > 0 ? `${fotos.length} foto` : "Belum ada foto"}
+                    <span className="text-xs text-ink/40">Belum ada foto</span>
+                  )}
+                  {videos.length > 0 && (
+                    <span className="absolute bottom-2 right-2 rounded-full bg-navy/80 px-2 py-0.5 text-[10px] font-medium text-white">
+                      ▶ {videos.length} video
                     </span>
                   )}
                 </div>
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <h3 className="font-heading font-semibold text-navy">{row.nama}</h3>
+                <div className="flex flex-1 flex-col gap-1 p-4">
+                  <h3 className="font-heading font-semibold text-navy">
+                    {row.nama_cluster}
+                  </h3>
+                  {row.daerah && (
+                    <p className="text-xs font-medium uppercase tracking-wide text-teal">
+                      {row.daerah}
+                    </p>
+                  )}
                   <p className="flex-1 text-sm text-ink/70">
-                    {truncate(row.keterangan, 100) || (
-                      <span className="text-ink/40">Belum ada keterangan.</span>
+                    {truncate(row.spec, 100) || (
+                      <span className="text-ink/40">Belum ada spesifikasi.</span>
                     )}
                   </p>
+                  {fotos.length > 0 && (
+                    <p className="text-xs text-ink/40">{fotos.length} foto</p>
+                  )}
                   <div className="flex justify-end gap-2 pt-2">
                     <button
                       onClick={() => openEditForm(row)}

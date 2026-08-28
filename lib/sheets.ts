@@ -22,17 +22,21 @@ export type QnaInput = {
 
 export type ProjectRow = {
   id: string;
-  nama: string;
-  keterangan: string;
+  nama_cluster: string;
+  daerah: string;
+  spec: string;
   foto_url: string;
+  video_url: string;
   updated_by: string;
   updated_at: string;
 };
 
 export type ProjectInput = {
-  nama: string;
-  keterangan: string;
+  nama_cluster: string;
+  daerah: string;
+  spec: string;
   foto_url: string;
+  video_url: string;
   updated_by: string;
 };
 
@@ -40,7 +44,7 @@ const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
 const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:H`;
 
 const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
-const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:F`;
+const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:H`;
 
 const numericSheetIdCache = new Map<string, number>();
 
@@ -253,7 +257,7 @@ export async function deleteQna(id: string): Promise<void> {
 // ---------- Projects ----------
 
 function rowToProject(row: string[]): ProjectRow | null {
-  const [id, nama, keterangan, foto_url, updated_by, updated_at] = row;
+  const [id, nama_cluster, daerah, spec, foto_url, video_url, updated_by, updated_at] = row;
 
   if (!id) {
     return null;
@@ -261,9 +265,11 @@ function rowToProject(row: string[]): ProjectRow | null {
 
   return {
     id,
-    nama: nama || "",
-    keterangan: keterangan || "",
+    nama_cluster: nama_cluster || "",
+    daerah: daerah || "",
+    spec: spec || "",
     foto_url: foto_url || "",
+    video_url: video_url || "",
     updated_by: updated_by || "",
     updated_at: updated_at || "",
   };
@@ -284,7 +290,16 @@ export async function listProjects(): Promise<ProjectRow[]> {
 }
 
 function projectToRowValues(id: string, data: ProjectInput, updatedAt: string): string[] {
-  return [id, data.nama, data.keterangan, data.foto_url, data.updated_by, updatedAt];
+  return [
+    id,
+    data.nama_cluster,
+    data.daerah,
+    data.spec,
+    data.foto_url,
+    data.video_url,
+    data.updated_by,
+    updatedAt,
+  ];
 }
 
 export async function addProject(data: ProjectInput): Promise<ProjectRow> {
@@ -304,9 +319,11 @@ export async function addProject(data: ProjectInput): Promise<ProjectRow> {
 
   return {
     id,
-    nama: data.nama,
-    keterangan: data.keterangan,
+    nama_cluster: data.nama_cluster,
+    daerah: data.daerah,
+    spec: data.spec,
     foto_url: data.foto_url,
+    video_url: data.video_url,
     updated_by: data.updated_by,
     updated_at,
   };
@@ -331,7 +348,7 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
-    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:F${sheetRow}`,
+    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [projectToRowValues(id, data, updated_at)],
@@ -340,9 +357,11 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
 
   return {
     id,
-    nama: data.nama,
-    keterangan: data.keterangan,
+    nama_cluster: data.nama_cluster,
+    daerah: data.daerah,
+    spec: data.spec,
     foto_url: data.foto_url,
+    video_url: data.video_url,
     updated_by: data.updated_by,
     updated_at,
   };

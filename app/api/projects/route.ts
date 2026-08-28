@@ -41,17 +41,19 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  if (!body.nama) {
+  if (!body.nama_cluster) {
     return NextResponse.json(
-      { success: false, error: "nama wajib diisi" },
+      { success: false, error: "nama_cluster wajib diisi" },
       { status: 400 }
     );
   }
 
   const input: ProjectInput = {
-    nama: body.nama,
-    keterangan: body.keterangan || "",
+    nama_cluster: body.nama_cluster,
+    daerah: body.daerah || "",
+    spec: body.spec || "",
     foto_url: body.foto_url || "",
+    video_url: body.video_url || "",
     updated_by: session.user.email || "",
   };
 

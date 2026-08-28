@@ -1,12 +1,12 @@
-import { listQna } from "@/lib/sheets";
+import { listProjects, listQna } from "@/lib/sheets";
 
 export default async function DashboardOverviewPage() {
-  const data = await listQna();
+  const [qna, projects] = await Promise.all([listQna(), listProjects()]);
 
-  const totalPertanyaan = data.length;
+  const totalPertanyaan = qna.length;
 
   const uniqueKeywords = new Set(
-    data.flatMap((row) =>
+    qna.flatMap((row) =>
       row.kata_kunci
         .split(",")
         .map((k) => k.trim().toLowerCase())
@@ -15,20 +15,21 @@ export default async function DashboardOverviewPage() {
   );
 
   const uniqueKategori = new Set(
-    data.map((row) => row.kategori.trim()).filter(Boolean)
+    qna.map((row) => row.kategori.trim()).filter(Boolean)
   );
 
   const stats = [
     { label: "Kata Kunci Unik", value: uniqueKeywords.size },
     { label: "Pertanyaan Tersimpan", value: totalPertanyaan },
     { label: "Format Jawaban (Kategori)", value: uniqueKategori.size },
+    { label: "Database Properti", value: projects.length },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <h2 className="font-heading text-lg font-semibold text-navy">Ringkasan</h2>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <div
             key={s.label}
