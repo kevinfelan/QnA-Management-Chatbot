@@ -21,11 +21,19 @@ publik).
   foto & video). Upload foto/video langsung dari form, otomatis tersimpan ke
   Supabase Storage dan link-nya masuk ke Google Sheets.
 - **Test Chat** — simulasi chat ala WhatsApp (in-app, tidak mengirim pesan
-  ke mana pun) untuk cek apakah pencocokan kata kunci ke jawaban QnA sudah
-  benar sebelum dipakai chatbot asli. Cari kecocokan kata kunci (substring,
-  case-insensitive) di antara QnA yang aktif; kalau ada beberapa yang cocok,
-  dipilih yang jumlah kata kunci cocoknya paling banyak. Tampilkan info kata
-  kunci yang match, cluster, dan kategori di bawah jawaban buat debug.
+  ke mana pun, tidak pakai API AI berbayar) untuk cek apakah pencocokan kata
+  kunci ke jawaban QnA sudah benar sebelum dipakai chatbot asli. Bot
+  berpersona "Ivy" (sales agent CariProperti): pakai "aku"/"kakak" (auto-swap
+  dari "saya"/"anda" di teks jawaban), jawab semua pertanyaan sekaligus kalau
+  1 pesan berisi >1 pertanyaan (dipisah per tanda tanya/baris baru, dicocokkan
+  satu-satu), minta maaf dulu kalau mendeteksi nada kesal/kecewa (keyword
+  list), dan balas persis `"Maaf kak sepertinya Ivy belum bisa jawab
+  pertanyaan itu"` kalau tidak ada kata kunci yang cocok. Pencocokan sendiri
+  tetap sama seperti sebelumnya: substring case-insensitive terhadap
+  `kata_kunci` QnA yang aktif, skor tertinggi menang. Info kata kunci yang
+  match, cluster, dan kategori ditampilkan di bawah tiap jawaban buat debug.
+  (Catatan: ini simulasi rule-based, bukan LLM asli — approksimasi persona,
+  bukan pemahaman bahasa natural sungguhan.)
 - **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses
   oleh user dengan role `admin`.
 
