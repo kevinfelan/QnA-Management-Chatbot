@@ -12,6 +12,12 @@ type ChatMessage = {
   images?: string[];
 };
 
+type BotPart = {
+  text: string;
+  images?: string[];
+  meta?: string;
+};
+
 type MatchResult = {
   row: QnaRow;
   matchedKeywords: string[];
@@ -67,14 +73,39 @@ function findBestMatch(segment: string, rows: QnaRow[]): MatchResult | null {
   return best ? { row: best.row, matchedKeywords: best.matchedKeywords } : null;
 }
 
-function findProjectByMention(segment: string, projects: ProjectRow[]): ProjectRow | null {
+// cek apakah segmen pesan nyebut nama cluster atau nama daerah tertentu
+// secara eksplisit -- dipakai buat trigger listing "foto+spec per unit".
+function findProjectsByAreaMention(
+  segment: string,
+  projects: ProjectRow[]
+): { matches: ProjectRow[]; label: string } | null {
   const lower = segment.toLowerCase();
-  return (
-    projects.find((p) => {
-      const cluster = p.nama_cluster.trim().toLowerCase();
-      return cluster && lower.includes(cluster);
-    }) || null
+
+  const clusterNames = Array.from(
+    new Set(projects.map((p) => p.nama_cluster.trim()).filter(Boolean))
   );
+  const matchedCluster = clusterNames.find((c) => lower.includes(c.toLowerCase()));
+  if (matchedCluster) {
+    return {
+      matches: projects.filter(
+        (p) => p.nama_cluster.trim().toLowerCase() === matchedCluster.toLowerCase()
+      ),
+      label: matchedCluster,
+    };
+  }
+
+  const daerahNames = Array.from(new Set(projects.map((p) => p.daerah.trim()).filter(Boolean)));
+  const matchedDaerah = daerahNames.find((d) => lower.includes(d.toLowerCase()));
+  if (matchedDaerah) {
+    return {
+      matches: projects.filter(
+        (p) => p.daerah.trim().toLowerCase() === matchedDaerah.toLowerCase()
+      ),
+      label: matchedDaerah,
+    };
+  }
+
+  return null;
 }
 
 // pisah pesan jadi beberapa "pertanyaan" berdasarkan tanda tanya/baris baru,
@@ -110,60 +141,38 @@ function metaFor(match: MatchResult): string {
 }
 
 type SegmentResult = {
-  text: string;
-  images?: string[];
-  meta?: string;
+  parts: BotPart[];
   cluster?: string;
 };
 
-function handleMediaRequest(
-  segment: string,
-  kind: "foto" | "video",
-  projects: ProjectRow[],
-  activeCluster: string | null
+// intro "ada N project nih kak..." lalu 1 pesan terpisah per unit (foto+spec).
+function buildAreaListing(
+  matches: ProjectRow[],
+  areaLabel: string,
+  kind: "foto" | "video"
 ): SegmentResult {
-  const targetClusterName = findProjectByMention(segment, projects)?.nama_cluster ?? activeCluster;
-
-  if (!targetClusterName) {
-    return {
-      text: `Properti yang mana ya kak? Boleh sebutkan nama cluster-nya dulu baru aku kirimkan ${kind}-nya.`,
-    };
-  }
-
-  const targets = projects.filter(
-    (p) => p.nama_cluster.trim().toLowerCase() === targetClusterName.toLowerCase()
-  );
-  const withMedia = targets.filter(
+  const withMedia = matches.filter(
     (p) => parseUrls(kind === "foto" ? p.foto_url : p.video_url).length > 0
   );
+  const list = withMedia.length > 0 ? withMedia : matches;
 
-  if (withMedia.length === 0) {
-    return {
-      text: `Waduh, ${kind} untuk ${targetClusterName} belum ada di database kak, nanti aku infokan ke tim ya.`,
-      cluster: targetClusterName,
-    };
+  const parts: BotPart[] = [
+    {
+      text: `Ada ${list.length} project nih kak di ${areaLabel}, wait ya Ivy kirim info projectnya.`,
+    },
+  ];
+
+  for (const p of list) {
+    const urls = parseUrls(kind === "foto" ? p.foto_url : p.video_url);
+    const specLine = [p.nama_cluster, p.daerah].filter(Boolean).join(" — ");
+    parts.push({
+      text: [specLine, p.spec || "(spec belum diisi)"].filter(Boolean).join("\n"),
+      images: kind === "foto" && urls.length > 0 ? urls : undefined,
+      meta: kind === "video" && urls.length > 0 ? urls.join(", ") : undefined,
+    });
   }
 
-  const images: string[] = [];
-  const introLine =
-    kind === "foto"
-      ? `Ini fotonya ya kak, unit di ${targetClusterName}:`
-      : `Ini videonya ya kak, unit di ${targetClusterName}:`;
-  const detailLines = withMedia.map((p, i) => {
-    const urls = parseUrls(kind === "foto" ? p.foto_url : p.video_url);
-    if (kind === "foto") images.push(...urls);
-    return `Unit ${i + 1}${p.spec ? ` — ${p.spec}` : ""}`;
-  });
-
-  return {
-    text: [introLine, ...detailLines].join("\n"),
-    images: kind === "foto" ? images : undefined,
-    meta:
-      kind === "video"
-        ? withMedia.flatMap((p) => parseUrls(p.video_url)).join(", ")
-        : undefined,
-    cluster: targetClusterName,
-  };
+  return { parts, cluster: matches[0]?.nama_cluster };
 }
 
 function handleSegment(
@@ -173,25 +182,44 @@ function handleSegment(
   activeCluster: string | null
 ): SegmentResult {
   const lower = segment.toLowerCase();
+  const isPhotoReq = PHOTO_KEYWORDS.some((k) => lower.includes(k));
+  const isVideoReq = VIDEO_KEYWORDS.some((k) => lower.includes(k));
 
-  if (PHOTO_KEYWORDS.some((k) => lower.includes(k))) {
-    return handleMediaRequest(segment, "foto", projectRows, activeCluster);
+  // sebut nama cluster/daerah eksplisit -> selalu tampilkan listing foto+spec
+  const areaMention = findProjectsByAreaMention(segment, projectRows);
+  if (areaMention) {
+    return buildAreaListing(areaMention.matches, areaMention.label, isVideoReq ? "video" : "foto");
   }
 
-  if (VIDEO_KEYWORDS.some((k) => lower.includes(k))) {
-    return handleMediaRequest(segment, "video", projectRows, activeCluster);
+  // minta foto/video tanpa sebut nama -> pakai konteks cluster dari histori chat
+  if (isPhotoReq || isVideoReq) {
+    const kind = isVideoReq ? "video" : "foto";
+    const matches = activeCluster
+      ? projectRows.filter((p) => p.nama_cluster.trim().toLowerCase() === activeCluster.toLowerCase())
+      : [];
+
+    if (matches.length === 0) {
+      return {
+        parts: [
+          {
+            text: `Properti yang mana ya kak? Boleh sebutkan nama cluster atau daerahnya dulu baru aku kirimkan ${kind}-nya.`,
+          },
+        ],
+      };
+    }
+
+    return buildAreaListing(matches, activeCluster as string, kind);
   }
 
   const match = findBestMatch(segment, qnaRows);
   if (match) {
     return {
-      text: applyIvyVoice(match.row.jawaban),
-      meta: metaFor(match),
+      parts: [{ text: applyIvyVoice(match.row.jawaban), meta: metaFor(match) }],
       cluster: match.row.nama_cluster || undefined,
     };
   }
 
-  return { text: FALLBACK_TEXT };
+  return { parts: [{ text: FALLBACK_TEXT }] };
 }
 
 function buildReply(
@@ -199,33 +227,22 @@ function buildReply(
   qnaRows: QnaRow[],
   projectRows: ProjectRow[],
   activeCluster: string | null
-): { text: string; images: string[]; meta?: string; nextActiveCluster: string | null } {
+): { parts: BotPart[]; nextActiveCluster: string | null } {
   const questions = splitQuestions(message);
-  const answered: string[] = [];
-  const images: string[] = [];
-  const metaParts: string[] = [];
   let cluster = activeCluster;
+  const allParts: BotPart[] = [];
+
+  if (detectAnger(message)) {
+    allParts.push({ text: "Aduh, maaf banget ya kak atas ketidaknyamanannya. 🙏" });
+  }
 
   for (const question of questions) {
     const result = handleSegment(question, qnaRows, projectRows, cluster);
-    answered.push(result.text);
-    if (result.images) images.push(...result.images);
-    if (result.meta) metaParts.push(result.meta);
+    allParts.push(...result.parts);
     if (result.cluster) cluster = result.cluster;
   }
 
-  const deduped = answered.filter((text, i) => text !== answered[i - 1]);
-
-  const angry = detectAnger(message);
-  const apology = "Aduh, maaf banget ya kak atas ketidaknyamanannya. 🙏";
-  const text = angry ? [apology, ...deduped].join("\n\n") : deduped.join("\n\n");
-
-  return {
-    text,
-    images,
-    meta: metaParts.length > 0 ? metaParts.join(" | ") : undefined,
-    nextActiveCluster: cluster,
-  };
+  return { parts: allParts, nextActiveCluster: cluster };
 }
 
 export default function TestChat({
@@ -242,7 +259,7 @@ export default function TestChat({
     {
       id: "welcome",
       sender: "bot",
-      text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dan foto/video dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus, atau minta foto/video propertinya!",
+      text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dan foto/video dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus, atau tanya properti di area/cluster tertentu!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -276,16 +293,16 @@ export default function TestChat({
 
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, sender: "user", text };
     const reply = buildReply(text, qnaRows, projectRows, activeCluster);
-    const botMsg: ChatMessage = {
-      id: `b-${Date.now()}`,
+    const botMsgs: ChatMessage[] = reply.parts.map((part, i) => ({
+      id: `b-${Date.now()}-${i}`,
       sender: "bot",
-      text: reply.text,
-      meta: reply.meta,
-      images: reply.images.length > 0 ? reply.images : undefined,
-    };
+      text: part.text,
+      images: part.images,
+      meta: part.meta,
+    }));
 
     setActiveCluster(reply.nextActiveCluster);
-    setMessages((prev) => [...prev, userMsg, botMsg]);
+    setMessages((prev) => [...prev, userMsg, ...botMsgs]);
     setInput("");
   }
 
