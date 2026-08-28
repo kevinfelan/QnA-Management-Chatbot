@@ -14,9 +14,11 @@ type ClusterGroup = {
   rows: ProjectRow[];
 };
 
-function truncate(text: string, max: number): string {
-  if (text.length <= max) return text;
-  return text.slice(0, max).trimEnd() + "...";
+function parseSpecLines(spec: string): string[] {
+  return spec
+    .split(/,\s*|\.\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function parseUrls(value: string): string[] {
@@ -235,11 +237,17 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
                                 {row.daerah}
                               </p>
                             )}
-                            <p className="flex-1 text-sm text-ink/70">
-                              {truncate(row.spec, 100) || (
+                            <div className="flex-1 text-sm text-ink/70">
+                              {row.spec ? (
+                                <ul className="list-disc space-y-0.5 pl-4">
+                                  {parseSpecLines(row.spec).map((line) => (
+                                    <li key={line}>{line}</li>
+                                  ))}
+                                </ul>
+                              ) : (
                                 <span className="text-ink/40">Belum ada spesifikasi.</span>
                               )}
-                            </p>
+                            </div>
                             {fotos.length > 0 && (
                               <p className="text-xs text-ink/40">{fotos.length} foto</p>
                             )}

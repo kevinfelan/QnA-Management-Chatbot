@@ -73,6 +73,13 @@ function findBestMatch(segment: string, rows: QnaRow[]): MatchResult | null {
   return best ? { row: best.row, matchedKeywords: best.matchedKeywords } : null;
 }
 
+// nama cluster biasanya diawali "Cluster ..." tapi customer sering nyebut
+// tanpa kata "cluster"-nya (mis. "ada properti di Dago Asri?"), jadi
+// dibandingkan tanpa prefix itu.
+function stripClusterWord(name: string): string {
+  return name.replace(/^cluster\s+/i, "").trim();
+}
+
 // cek apakah segmen pesan nyebut nama cluster atau nama daerah tertentu
 // secara eksplisit -- dipakai buat trigger listing "foto+spec per unit".
 function findProjectsByAreaMention(
@@ -84,7 +91,10 @@ function findProjectsByAreaMention(
   const clusterNames = Array.from(
     new Set(projects.map((p) => p.nama_cluster.trim()).filter(Boolean))
   );
-  const matchedCluster = clusterNames.find((c) => lower.includes(c.toLowerCase()));
+  const matchedCluster = clusterNames.find((c) => {
+    const key = stripClusterWord(c).toLowerCase();
+    return key.length >= 3 && lower.includes(key);
+  });
   if (matchedCluster) {
     return {
       matches: projects.filter(
@@ -145,6 +155,16 @@ type SegmentResult = {
   cluster?: string;
 };
 
+// pecah teks spec ("LT90/LB70, 2 lantai, 3KT 2KM. Harga mulai 1.2 M.") jadi
+// per baris berdasarkan koma atau titik-akhir-kalimat (bukan titik desimal
+// harga), supaya enak dibaca di chat bubble.
+function parseSpecLines(spec: string): string[] {
+  return spec
+    .split(/,\s*|\.\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // intro "ada N project nih kak..." lalu 1 pesan terpisah per unit (foto+spec).
 function buildAreaListing(
   matches: ProjectRow[],
@@ -165,8 +185,9 @@ function buildAreaListing(
   for (const p of list) {
     const urls = parseUrls(kind === "foto" ? p.foto_url : p.video_url);
     const specLine = [p.nama_cluster, p.daerah].filter(Boolean).join(" — ");
+    const specLines = p.spec ? parseSpecLines(p.spec) : ["(spec belum diisi)"];
     parts.push({
-      text: [specLine, p.spec || "(spec belum diisi)"].filter(Boolean).join("\n"),
+      text: [specLine, ...specLines].filter(Boolean).join("\n"),
       images: kind === "foto" && urls.length > 0 ? urls : undefined,
       meta: kind === "video" && urls.length > 0 ? urls.join(", ") : undefined,
     });
