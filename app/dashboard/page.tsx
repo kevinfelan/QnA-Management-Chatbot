@@ -1,36 +1,46 @@
-import { redirect } from "next/navigation";
-import { createServerSupabase } from "@/lib/supabase-server";
 import { listQna } from "@/lib/sheets";
-import QnaTable from "@/components/QnaTable";
-import LogoutButton from "@/components/LogoutButton";
 
-export default async function DashboardPage() {
-  const supabase = await createServerSupabase();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
+export default async function DashboardOverviewPage() {
   const data = await listQna();
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between bg-navy px-4 py-4 sm:px-6">
-        <div>
-          <h1 className="font-heading text-lg font-semibold text-white sm:text-xl">
-            QnA Setup
-          </h1>
-          <p className="text-xs text-white/60">{session.user.email}</p>
-        </div>
-        <LogoutButton />
-      </header>
+  const totalPertanyaan = data.length;
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <QnaTable initialData={data} />
-      </main>
+  const uniqueKeywords = new Set(
+    data.flatMap((row) =>
+      row.kata_kunci
+        .split(",")
+        .map((k) => k.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+
+  const uniqueKategori = new Set(
+    data.map((row) => row.kategori.trim()).filter(Boolean)
+  );
+
+  const stats = [
+    { label: "Kata Kunci Unik", value: uniqueKeywords.size },
+    { label: "Pertanyaan Tersimpan", value: totalPertanyaan },
+    { label: "Format Jawaban (Kategori)", value: uniqueKategori.size },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h2 className="font-heading text-lg font-semibold text-navy">Ringkasan</h2>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-lg border border-navy/10 bg-white p-5"
+          >
+            <p className="font-heading text-3xl font-semibold text-teal">
+              {s.value}
+            </p>
+            <p className="mt-1 text-sm text-ink/60">{s.label}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

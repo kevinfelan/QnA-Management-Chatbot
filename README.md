@@ -1,17 +1,28 @@
 # QnA Setup App — Chatbot Properti WhatsApp
 
 Aplikasi internal (PWA) untuk tim non-teknis mengelola data Tanya-Jawab (QnA)
-chatbot WhatsApp properti. Data QnA disimpan di Google Sheets (bukan database
-terpisah) karena akan dibaca langsung oleh chatbot WhatsApp yang terpisah dari
-app ini. Login memakai Supabase Auth (email + password, user ditambahkan
-manual oleh admin, tanpa signup publik).
+chatbot WhatsApp properti. Data QnA dan Database Project disimpan di Google
+Sheets (bukan database terpisah) karena akan dibaca langsung oleh chatbot
+WhatsApp yang terpisah dari app ini. Login memakai Supabase Auth (email +
+password, user ditambahkan lewat modul Admin di dalam app, tanpa signup
+publik).
+
+## Modul
+
+- **Dashboard** — ringkasan jumlah kata kunci unik, pertanyaan tersimpan, dan
+  kategori (format jawaban) yang dipakai.
+- **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp.
+- **Database Project** — daftar project/properti (nama, keterangan, link foto
+  Google Drive).
+- **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses
+  oleh user dengan role `admin`.
 
 ## Tech Stack
 
 - Next.js 16 (App Router, TypeScript)
 - Tailwind CSS
 - Supabase Auth (`@supabase/ssr`, `@supabase/supabase-js`)
-- Google Sheets API (`googleapis`) — sebagai database QnA satu-satunya
+- Google Sheets API (`googleapis`) — sebagai database QnA & Project
 - Deploy target: Vercel
 
 ## Setup Lokal
@@ -27,21 +38,28 @@ manual oleh admin, tanpa signup publik).
    ```
    NEXT_PUBLIC_SUPABASE_URL=
    NEXT_PUBLIC_SUPABASE_ANON_KEY=
+   SUPABASE_SERVICE_ROLE_KEY=
    GOOGLE_CLIENT_EMAIL=
    GOOGLE_PRIVATE_KEY=
    GOOGLE_SHEET_ID=
    GOOGLE_QNA_SHEET_NAME=QnA_Setup
+   GOOGLE_PROJECTS_SHEET_NAME=Projects
    ```
 
    - `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` diambil dari
      project Supabase (Settings → API).
+   - `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → **service_role key**.
+     **Rahasia**, jangan pernah dipakai di kode client/browser. Dipakai khusus
+     untuk modul Admin (invite user, ubah role).
    - `GOOGLE_CLIENT_EMAIL` dan `GOOGLE_PRIVATE_KEY` dari service account Google
      Cloud yang punya akses ke spreadsheet (private key ditulis dengan `\n`
      literal di dalam tanda kutip, akan dikonversi otomatis oleh app).
    - `GOOGLE_SHEET_ID` adalah ID spreadsheet (bagian di URL Google Sheets
      antara `/d/` dan `/edit`).
    - Spreadsheet harus di-share ke email service account (`GOOGLE_CLIENT_EMAIL`)
-     dengan akses Editor.
+     dengan akses Editor. Tab `Projects` dibuat otomatis oleh app kalau belum
+     ada (lewat script satu kali, lihat catatan di bawah) — atau bisa dibuat
+     manual dengan header sesuai skema di bawah.
 
 3. Jalankan development server:
 
@@ -51,9 +69,25 @@ manual oleh admin, tanpa signup publik).
 
    Buka [http://localhost:3000](http://localhost:3000).
 
+### Bootstrap admin pertama
+
+Role user (`admin` / `user`) disimpan di `app_metadata` Supabase Auth, yang
+hanya bisa diubah lewat Admin API (service role key) — user biasa tidak bisa
+mengubah role dirinya sendiri. Admin pertama harus di-set manual satu kali,
+misalnya lewat Supabase SQL Editor:
+
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
+where email = 'email-admin-pertama@contoh.com';
+```
+
+Setelah itu, admin tersebut bisa mengundang & mengatur role user lain lewat
+modul Admin di dalam app.
+
 ## Struktur Data Google Sheet
 
-Tab bernama `QnA_Setup`, header di row 1, data mulai row 2:
+### Tab `QnA_Setup` (header row 1, data mulai row 2)
 
 | Kolom | Field              | Keterangan                 |
 | ----- | ------------------ | --------------------------- |
@@ -65,6 +99,21 @@ Tab bernama `QnA_Setup`, header di row 1, data mulai row 2:
 | F     | aktif              | `TRUE` / `FALSE`            |
 | G     | updated_by         | email user yang mengubah    |
 | H     | updated_at         | ISO timestamp               |
+
+### Tab `Projects` (header row 1, data mulai row 2)
+
+| Kolom | Field       | Keterangan                                   |
+| ----- | ----------- | --------------------------------------------- |
+| A     | id          | format `proj-<angka>`                          |
+| B     | nama        | nama project/properti                          |
+| C     | keterangan  | deskripsi                                      |
+| D     | foto_url    | link Google Drive, dipisah koma jika lebih dari satu |
+| E     | updated_by  | email user yang mengubah                       |
+| F     | updated_at  | ISO timestamp                                  |
+
+Link foto harus di-share dengan akses **"Anyone with the link"** supaya
+thumbnail-nya bisa tampil di app (app memakai endpoint publik
+`drive.google.com/thumbnail`, tidak lewat Drive API).
 
 ## Deploy
 

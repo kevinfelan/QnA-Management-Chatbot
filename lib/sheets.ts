@@ -20,10 +20,29 @@ export type QnaInput = {
   updated_by: string;
 };
 
-const SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
-const SHEET_RANGE_DATA = `${SHEET_NAME}!A2:H`;
+export type ProjectRow = {
+  id: string;
+  nama: string;
+  keterangan: string;
+  foto_url: string;
+  updated_by: string;
+  updated_at: string;
+};
 
-let cachedSheetNumericId: number | null = null;
+export type ProjectInput = {
+  nama: string;
+  keterangan: string;
+  foto_url: string;
+  updated_by: string;
+};
+
+const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
+const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:H`;
+
+const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
+const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:F`;
+
+const numericSheetIdCache = new Map<string, number>();
 
 function getSpreadsheetId(): string {
   const id = process.env.GOOGLE_SHEET_ID;
@@ -52,9 +71,9 @@ export function getSheetsClient(): sheets_v4.Sheets {
   return google.sheets({ version: "v4", auth });
 }
 
-export async function getSheetNumericId(): Promise<number> {
-  if (cachedSheetNumericId !== null) {
-    return cachedSheetNumericId;
+async function getSheetNumericId(sheetName: string): Promise<number> {
+  if (numericSheetIdCache.has(sheetName)) {
+    return numericSheetIdCache.get(sheetName)!;
   }
 
   const sheets = getSheetsClient();
@@ -63,16 +82,41 @@ export async function getSheetNumericId(): Promise<number> {
   });
 
   const sheet = res.data.sheets?.find(
-    (s) => s.properties?.title === SHEET_NAME
+    (s) => s.properties?.title === sheetName
   );
 
   if (!sheet || sheet.properties?.sheetId == null) {
-    throw new Error(`Tab "${SHEET_NAME}" tidak ditemukan di spreadsheet.`);
+    throw new Error(`Tab "${sheetName}" tidak ditemukan di spreadsheet.`);
   }
 
-  cachedSheetNumericId = sheet.properties.sheetId;
-  return cachedSheetNumericId;
+  numericSheetIdCache.set(sheetName, sheet.properties.sheetId);
+  return sheet.properties.sheetId;
 }
+
+async function deleteRow(sheetName: string, sheetRow: number): Promise<void> {
+  const sheets = getSheetsClient();
+  const sheetNumericId = await getSheetNumericId(sheetName);
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: getSpreadsheetId(),
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheetNumericId,
+              dimension: "ROWS",
+              startIndex: sheetRow - 1,
+              endIndex: sheetRow,
+            },
+          },
+        },
+      ],
+    },
+  });
+}
+
+// ---------- QnA ----------
 
 function rowToQna(row: string[]): QnaRow | null {
   const [id, kata_kunci, pertanyaan_sample, jawaban, kategori, aktif, updated_by, updated_at] =
@@ -98,7 +142,7 @@ export async function listQna(): Promise<QnaRow[]> {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
-    range: SHEET_RANGE_DATA,
+    range: QNA_RANGE_DATA,
   });
 
   const rows = res.data.values || [];
@@ -108,10 +152,11 @@ export async function listQna(): Promise<QnaRow[]> {
     .filter((row): row is QnaRow => row !== null);
 }
 
-function nextId(existing: QnaRow[]): string {
+function nextId(prefix: string, existingIds: string[]): string {
   let maxNum = 0;
-  for (const row of existing) {
-    const match = row.id.match(/^qna-(\d+)$/);
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`);
+  for (const id of existingIds) {
+    const match = id.match(pattern);
     if (match) {
       const num = parseInt(match[1], 10);
       if (num > maxNum) {
@@ -119,7 +164,7 @@ function nextId(existing: QnaRow[]): string {
       }
     }
   }
-  return `qna-${maxNum + 1}`;
+  return `${prefix}-${maxNum + 1}`;
 }
 
 function qnaToRowValues(id: string, data: QnaInput, updatedAt: string): string[] {
@@ -138,12 +183,12 @@ function qnaToRowValues(id: string, data: QnaInput, updatedAt: string): string[]
 export async function addQna(data: QnaInput): Promise<QnaRow> {
   const sheets = getSheetsClient();
   const existing = await listQna();
-  const id = nextId(existing);
+  const id = nextId("qna", existing.map((row) => row.id));
   const updated_at = new Date().toISOString();
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: getSpreadsheetId(),
-    range: SHEET_RANGE_DATA,
+    range: QNA_RANGE_DATA,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [qnaToRowValues(id, data, updated_at)],
@@ -162,7 +207,7 @@ export async function addQna(data: QnaInput): Promise<QnaRow> {
   };
 }
 
-async function findRowIndex(id: string): Promise<{ existing: QnaRow[]; index: number }> {
+async function findQnaRowIndex(id: string): Promise<number> {
   const existing = await listQna();
   const index = existing.findIndex((row) => row.id === id);
 
@@ -170,18 +215,18 @@ async function findRowIndex(id: string): Promise<{ existing: QnaRow[]; index: nu
     throw new Error(`QnA dengan id "${id}" tidak ditemukan.`);
   }
 
-  return { existing, index };
+  return index;
 }
 
 export async function updateQna(id: string, data: QnaInput): Promise<QnaRow> {
   const sheets = getSheetsClient();
-  const { index } = await findRowIndex(id);
+  const index = await findQnaRowIndex(id);
   const sheetRow = index + 2; // +2: header di row 1, index 0-based
   const updated_at = new Date().toISOString();
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
-    range: `${SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
+    range: `${QNA_SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [qnaToRowValues(id, data, updated_at)],
@@ -201,28 +246,109 @@ export async function updateQna(id: string, data: QnaInput): Promise<QnaRow> {
 }
 
 export async function deleteQna(id: string): Promise<void> {
-  const sheets = getSheetsClient();
-  const { index } = await findRowIndex(id);
-  const sheetRow = index + 2; // baris asli di sheet (1-based, termasuk header)
-  const sheetNumericId = await getSheetNumericId();
+  const index = await findQnaRowIndex(id);
+  await deleteRow(QNA_SHEET_NAME, index + 2);
+}
 
-  // batchUpdate pakai index 0-based murni (tanpa offset header terpisah),
-  // startIndex = sheetRow - 1, endIndex exclusive = sheetRow
-  await sheets.spreadsheets.batchUpdate({
+// ---------- Projects ----------
+
+function rowToProject(row: string[]): ProjectRow | null {
+  const [id, nama, keterangan, foto_url, updated_by, updated_at] = row;
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    nama: nama || "",
+    keterangan: keterangan || "",
+    foto_url: foto_url || "",
+    updated_by: updated_by || "",
+    updated_at: updated_at || "",
+  };
+}
+
+export async function listProjects(): Promise<ProjectRow[]> {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
+    range: PROJECTS_RANGE_DATA,
+  });
+
+  const rows = res.data.values || [];
+
+  return rows
+    .map((row) => rowToProject(row as string[]))
+    .filter((row): row is ProjectRow => row !== null);
+}
+
+function projectToRowValues(id: string, data: ProjectInput, updatedAt: string): string[] {
+  return [id, data.nama, data.keterangan, data.foto_url, data.updated_by, updatedAt];
+}
+
+export async function addProject(data: ProjectInput): Promise<ProjectRow> {
+  const sheets = getSheetsClient();
+  const existing = await listProjects();
+  const id = nextId("proj", existing.map((row) => row.id));
+  const updated_at = new Date().toISOString();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: getSpreadsheetId(),
+    range: PROJECTS_RANGE_DATA,
+    valueInputOption: "USER_ENTERED",
     requestBody: {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheetNumericId,
-              dimension: "ROWS",
-              startIndex: sheetRow - 1,
-              endIndex: sheetRow,
-            },
-          },
-        },
-      ],
+      values: [projectToRowValues(id, data, updated_at)],
     },
   });
+
+  return {
+    id,
+    nama: data.nama,
+    keterangan: data.keterangan,
+    foto_url: data.foto_url,
+    updated_by: data.updated_by,
+    updated_at,
+  };
+}
+
+async function findProjectRowIndex(id: string): Promise<number> {
+  const existing = await listProjects();
+  const index = existing.findIndex((row) => row.id === id);
+
+  if (index === -1) {
+    throw new Error(`Project dengan id "${id}" tidak ditemukan.`);
+  }
+
+  return index;
+}
+
+export async function updateProject(id: string, data: ProjectInput): Promise<ProjectRow> {
+  const sheets = getSheetsClient();
+  const index = await findProjectRowIndex(id);
+  const sheetRow = index + 2;
+  const updated_at = new Date().toISOString();
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: getSpreadsheetId(),
+    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:F${sheetRow}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [projectToRowValues(id, data, updated_at)],
+    },
+  });
+
+  return {
+    id,
+    nama: data.nama,
+    keterangan: data.keterangan,
+    foto_url: data.foto_url,
+    updated_by: data.updated_by,
+    updated_at,
+  };
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const index = await findProjectRowIndex(id);
+  await deleteRow(PROJECTS_SHEET_NAME, index + 2);
 }
