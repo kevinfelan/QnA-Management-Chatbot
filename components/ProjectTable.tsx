@@ -20,12 +20,6 @@ function parseUrls(value: string): string[] {
     .filter(Boolean);
 }
 
-function driveThumbnail(url: string): string | null {
-  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (!match) return null;
-  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w200`;
-}
-
 async function apiCall<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
@@ -129,7 +123,7 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
           {rows.map((row) => {
             const fotos = parseUrls(row.foto_url);
             const videos = parseUrls(row.video_url);
-            const thumb = fotos.length > 0 ? driveThumbnail(fotos[0]) : null;
+            const thumb = fotos.length > 0 ? fotos[0] : null;
 
             return (
               <div

@@ -14,7 +14,7 @@ publik).
 - **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp.
 - **Database Project** — daftar project/properti (nama cluster, daerah, spec,
   foto & video). Upload foto/video langsung dari form, otomatis tersimpan ke
-  Google Drive dan link-nya masuk ke Google Sheets.
+  Supabase Storage dan link-nya masuk ke Google Sheets.
 - **Admin** — undang user baru & atur role (admin/user). Hanya bisa diakses
   oleh user dengan role `admin`.
 
@@ -22,7 +22,8 @@ publik).
 
 - Next.js 16 (App Router, TypeScript)
 - Tailwind CSS
-- Supabase Auth (`@supabase/ssr`, `@supabase/supabase-js`)
+- Supabase Auth (`@supabase/ssr`, `@supabase/supabase-js`) + Supabase Storage
+  (foto/video properti)
 - Google Sheets API (`googleapis`) — sebagai database QnA & Project
 - Deploy target: Vercel
 
@@ -45,14 +46,15 @@ publik).
    GOOGLE_SHEET_ID=
    GOOGLE_QNA_SHEET_NAME=QnA_Setup
    GOOGLE_PROJECTS_SHEET_NAME=Projects
-   GOOGLE_DRIVE_FOLDER_ID=
    ```
 
    - `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` diambil dari
      project Supabase (Settings → API).
    - `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → **service_role key**.
-     **Rahasia**, jangan pernah dipakai di kode client/browser. Dipakai khusus
-     untuk modul Admin (invite user, ubah role).
+     **Rahasia**, jangan pernah dipakai di kode client/browser. Dipakai untuk
+     modul Admin (invite user, ubah role) dan upload foto/video (Supabase
+     Storage) di modul Database Project — bucket `properti-media` dibuat
+     otomatis saat upload pertama kali, sudah public-readable.
    - `GOOGLE_CLIENT_EMAIL` dan `GOOGLE_PRIVATE_KEY` dari service account Google
      Cloud yang punya akses ke spreadsheet (private key ditulis dengan `\n`
      literal di dalam tanda kutip, akan dikonversi otomatis oleh app).
@@ -62,14 +64,12 @@ publik).
      dengan akses Editor. Tab `Projects` dibuat otomatis oleh app kalau belum
      ada (lewat script satu kali, lihat catatan di bawah) — atau bisa dibuat
      manual dengan header sesuai skema di bawah.
-   - **Google Drive API** harus di-enable juga di project Google Cloud yang
-     sama (search "Google Drive API" di Cloud Console → Enable), dipakai
-     untuk upload foto/video di modul Database Project.
-   - `GOOGLE_DRIVE_FOLDER_ID` — **wajib diisi**, ID folder Google Drive
-     tempat foto/video hasil upload disimpan. Service account tidak punya
-     kuota storage sendiri di Drive, jadi harus upload ke folder milik akun
-     Google asli yang di-share ke service account (akses Editor). Ambil ID
-     dari URL folder: `drive.google.com/drive/folders/`**`ID_NYA`**.
+
+   > **Catatan:** foto/video sempat direncanakan upload ke Google Drive, tapi
+   > service account Google tidak punya kuota storage sendiri di akun Gmail
+   > personal (limitasi Google, hanya bisa diatasi dengan Shared Drive/Google
+   > Workspace atau OAuth login pribadi). Jadi dipindah ke Supabase Storage
+   > yang lebih simpel dan tidak kena batasan itu.
 
 3. Jalankan development server:
 
@@ -118,17 +118,16 @@ modul Admin di dalam app.
 | B     | nama_cluster | nama cluster/project properti                            |
 | C     | daerah       | lokasi/daerah                                            |
 | D     | spec         | spesifikasi (LT/LB, kamar, harga, dll — free text)        |
-| E     | foto_url     | link Google Drive, dipisah koma jika lebih dari satu      |
-| F     | video_url    | link Google Drive, dipisah koma jika lebih dari satu      |
+| E     | foto_url     | link Supabase Storage, dipisah koma jika lebih dari satu   |
+| F     | video_url    | link Supabase Storage, dipisah koma jika lebih dari satu   |
 | G     | updated_by   | email user yang mengubah                                 |
 | H     | updated_at   | ISO timestamp                                             |
 
 Foto/video di-upload langsung dari form (bukan paste link manual) — app
-meng-upload file ke Google Drive lewat service account, otomatis set
-permission **"Anyone with the link"** supaya thumbnail-nya bisa tampil, lalu
-menyimpan link-nya ke kolom `foto_url`/`video_url`. Maks 4MB per file (batas
-aman ukuran request body di Vercel Serverless Functions) — untuk video yang
-lebih besar, kompres/potong dulu sebelum upload.
+meng-upload file ke Supabase Storage (bucket `properti-media`, public), lalu
+menyimpan public URL-nya ke kolom `foto_url`/`video_url`. Maks 4MB per file
+(batas aman ukuran request body di Vercel Serverless Functions) — untuk video
+yang lebih besar, kompres/potong dulu sebelum upload.
 
 ## Deploy
 

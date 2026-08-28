@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
-import { uploadFileToDrive } from "@/lib/drive";
+import { uploadFileToStorage } from "@/lib/storage";
 
 const MAX_SIZE = 4 * 1024 * 1024; // batas aman request body serverless (Vercel)
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const uploaded = await uploadFileToDrive(
+    const uploaded = await uploadFileToStorage(
       buffer,
       file.name,
       file.type || "application/octet-stream"
