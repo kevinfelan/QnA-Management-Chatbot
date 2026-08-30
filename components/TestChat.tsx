@@ -1022,47 +1022,11 @@ export default function TestChat({
   const [input, setInput] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
-  const [chatHeight, setChatHeight] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Unit vh/dvh/svh nggak ikut nyusut pas keyboard HP muncul (cuma bereaksi
-  // ke address bar browser) -- jadi kotak chat ini ukur tinggi beneran
-  // lewat visualViewport, yang MEMANG didesain buat kasus keyboard. Update
-  // ulang tiap keyboard buka/tutup biar input selalu keliatan di atasnya,
-  // gak ketiban keyboard atau kepotong.
-  useEffect(() => {
-    function updateHeight() {
-      if (!containerRef.current) return;
-      const vv = window.visualViewport;
-      const viewportHeight = vv ? vv.height : window.innerHeight;
-      const top = containerRef.current.getBoundingClientRect().top;
-      const offsetTop = vv ? top - vv.offsetTop : top;
-      // nav bawah mengambang itu position:fixed di atas konten -- diukur
-      // langsung (bukan diasumsikan) biar kotak chat/tombol send-nya gak
-      // ketutupan. Balik 0 kalau lagi disembunyikan (desktop atau pas
-      // keyboard kebuka), karena getBoundingClientRect() elemen
-      // display:none itu 0.
-      const navEl = document.querySelector("[data-bottom-nav]");
-      const navHeight = navEl ? navEl.getBoundingClientRect().height : 0;
-      const available = viewportHeight - offsetTop - navHeight - 16;
-      setChatHeight(Math.max(available, 360));
-    }
-
-    updateHeight();
-    window.visualViewport?.addEventListener("resize", updateHeight);
-    window.visualViewport?.addEventListener("scroll", updateHeight);
-    window.addEventListener("resize", updateHeight);
-    return () => {
-      window.visualViewport?.removeEventListener("resize", updateHeight);
-      window.visualViewport?.removeEventListener("scroll", updateHeight);
-      window.removeEventListener("resize", updateHeight);
-    };
-  }, []);
 
   async function refreshData() {
     setRefreshing(true);
@@ -1127,11 +1091,7 @@ export default function TestChat({
   const activeCount = qnaRows.filter((r) => r.aktif).length;
 
   return (
-    <div
-      ref={containerRef}
-      style={chatHeight ? { height: chatHeight } : undefined}
-      className="flex h-[calc(100svh-320px)] min-h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-xl border border-navy/10 bg-white"
-    >
+    <div className="flex min-h-[360px] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
       <div className="flex items-center justify-between gap-2 border-b border-navy/10 bg-navy px-4 py-3 text-white">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-navy">
