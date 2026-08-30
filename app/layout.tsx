@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   title: "QnA Setup — Chatbot Properti",
   description: "Kelola data Tanya-Jawab chatbot WhatsApp properti",
   manifest: "/manifest.json",
+  appleWebApp: {
+    statusBarStyle: "black-translucent",
+    title: "QnA Setup",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport = {

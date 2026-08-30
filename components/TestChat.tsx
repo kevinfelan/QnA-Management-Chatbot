@@ -998,6 +998,38 @@ function buildReply(
   };
 }
 
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  sender: "bot",
+  text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dan foto/video dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus, atau tanya properti di area/cluster tertentu!",
+};
+
+type PersistedChatState = {
+  messages: ChatMessage[];
+  activeCluster: string | null;
+  activeProject: ProjectRow | null;
+  sharedProjectIds: Set<string>;
+  inquiryCounts: Map<string, number>;
+  surveyOffered: Set<string>;
+};
+
+// disimpan di luar siklus hidup komponen (modul, bukan useState) supaya
+// percakapan gak ke-reset waktu customer pindah ke modul lain lalu balik
+// lagi ke Test Chat (komponennya di-unmount/mount ulang tiap navigasi
+// halaman). Cuma direset manual lewat tombol "Refresh Data".
+let persistedChatState: PersistedChatState | null = null;
+
+function freshChatState(): PersistedChatState {
+  return {
+    messages: [WELCOME_MESSAGE],
+    activeCluster: null,
+    activeProject: null,
+    sharedProjectIds: new Set(),
+    inquiryCounts: new Map(),
+    surveyOffered: new Set(),
+  };
+}
+
 export default function TestChat({
   initialQna,
   initialProjects,
@@ -1005,20 +1037,16 @@ export default function TestChat({
   initialQna: QnaRow[];
   initialProjects: ProjectRow[];
 }) {
+  const initialChatState = persistedChatState ?? freshChatState();
+
   const [qnaRows, setQnaRows] = useState<QnaRow[]>(initialQna);
   const [projectRows, setProjectRows] = useState<ProjectRow[]>(initialProjects);
-  const [activeCluster, setActiveCluster] = useState<string | null>(null);
-  const [activeProject, setActiveProject] = useState<ProjectRow | null>(null);
-  const [sharedProjectIds, setSharedProjectIds] = useState<Set<string>>(new Set());
-  const [inquiryCounts, setInquiryCounts] = useState<Map<string, number>>(new Map());
-  const [surveyOffered, setSurveyOffered] = useState<Set<string>>(new Set());
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      sender: "bot",
-      text: "Halo kak! Aku Ivy dari CariProperti. Ini simulasi buat ngecek apakah jawaban dan foto/video dari database sudah kepanggil dengan benar. Coba tanya sesuatu ya, boleh lebih dari satu pertanyaan sekaligus, atau tanya properti di area/cluster tertentu!",
-    },
-  ]);
+  const [activeCluster, setActiveCluster] = useState<string | null>(initialChatState.activeCluster);
+  const [activeProject, setActiveProject] = useState<ProjectRow | null>(initialChatState.activeProject);
+  const [sharedProjectIds, setSharedProjectIds] = useState<Set<string>>(initialChatState.sharedProjectIds);
+  const [inquiryCounts, setInquiryCounts] = useState<Map<string, number>>(initialChatState.inquiryCounts);
+  const [surveyOffered, setSurveyOffered] = useState<Set<string>>(initialChatState.surveyOffered);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialChatState.messages);
   const [input, setInput] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
@@ -1027,6 +1055,19 @@ export default function TestChat({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // sinkron balik ke store modul tiap kali percakapan berubah, biar
+  // kepake lagi kalau komponen ini mount ulang (pindah halaman & balik).
+  useEffect(() => {
+    persistedChatState = {
+      messages,
+      activeCluster,
+      activeProject,
+      sharedProjectIds,
+      inquiryCounts,
+      surveyOffered,
+    };
+  }, [messages, activeCluster, activeProject, sharedProjectIds, inquiryCounts, surveyOffered]);
 
   async function refreshData() {
     setRefreshing(true);
@@ -1039,6 +1080,16 @@ export default function TestChat({
       const projectJson = await projectRes.json();
       if (qnaRes.ok && qnaJson.success) setQnaRows(qnaJson.data);
       if (projectRes.ok && projectJson.success) setProjectRows(projectJson.data);
+
+      // "Refresh Data" itu satu-satunya cara sengaja ngosongin percakapan --
+      // reset semua konteks & histori balik ke awal.
+      const fresh = freshChatState();
+      setMessages(fresh.messages);
+      setActiveCluster(fresh.activeCluster);
+      setActiveProject(fresh.activeProject);
+      setSharedProjectIds(fresh.sharedProjectIds);
+      setInquiryCounts(fresh.inquiryCounts);
+      setSurveyOffered(fresh.surveyOffered);
     } finally {
       setRefreshing(false);
     }
