@@ -319,7 +319,12 @@ export default function QnaTable({ initialData }: QnaTableProps) {
       )}
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
             <h3 className="mb-4 font-heading text-lg font-semibold text-navy">
               {editingRow ? "Edit QnA" : "Tambah QnA"}
