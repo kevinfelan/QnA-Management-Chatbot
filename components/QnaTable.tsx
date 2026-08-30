@@ -320,7 +320,11 @@ export default function QnaTable({ initialData }: QnaTableProps) {
 
       {formOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4"
+          className="fixed inset-0 z-50 flex h-dvh items-center justify-center bg-navy/40 px-4"
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
           onTouchStart={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
