@@ -50,6 +50,14 @@ const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:I`;
 const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
 const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:H`;
 
+// Semua tulisan ke Sheets pakai RAW, JANGAN USER_ENTERED. Dengan
+// USER_ENTERED, Sheets memparse isi sel seolah diketik manusia -- sudah
+// diuji langsung dan hasilnya: "=1+1" berubah jadi "2", dan
+// "+62812345678" kehilangan tanda plusnya jadi "62812345678". Nomor
+// WhatsApp di kolom jawaban itu kasus nyata, jadi isinya harus disimpan
+// apa adanya. Semua kolom di sheet ini memang teks, jadi RAW aman.
+const RAW_INPUT = "RAW";
+
 const numericSheetIdCache = new Map<string, number>();
 
 function getSpreadsheetId(): string {
@@ -199,7 +207,7 @@ export async function addQna(data: QnaInput): Promise<QnaRow> {
   await sheets.spreadsheets.values.append({
     spreadsheetId: getSpreadsheetId(),
     range: QNA_RANGE_DATA,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: RAW_INPUT,
     requestBody: {
       values: [qnaToRowValues(id, data, updated_at)],
     },
@@ -216,6 +224,52 @@ export async function addQna(data: QnaInput): Promise<QnaRow> {
     updated_at,
     nama_cluster: data.nama_cluster,
   };
+}
+
+// Tambah banyak QnA sekaligus dalam SATU panggilan append -- dipakai fitur
+// import Excel. Sengaja tidak looping addQna() supaya tidak ada risiko
+// sebagian baris masuk lalu sisanya gagal di tengah jalan, dan supaya tidak
+// menembak Sheets API puluhan kali (rawan kena rate limit).
+export async function addQnaBulk(items: QnaInput[]): Promise<QnaRow[]> {
+  if (items.length === 0) return [];
+
+  const sheets = getSheetsClient();
+  const existing = await listQna();
+  const existingIds = existing.map((row) => row.id);
+  const updated_at = new Date().toISOString();
+
+  // id digenerate berurutan dari nomor terakhir yang ada di sheet
+  let maxNum = 0;
+  for (const id of existingIds) {
+    const match = id.match(/^qna-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
+    }
+  }
+
+  const created: QnaRow[] = items.map((data, i) => ({
+    id: `qna-${maxNum + 1 + i}`,
+    kata_kunci: data.kata_kunci,
+    pertanyaan_sample: data.pertanyaan_sample,
+    jawaban: data.jawaban,
+    kategori: data.kategori,
+    aktif: data.aktif,
+    updated_by: data.updated_by,
+    updated_at,
+    nama_cluster: data.nama_cluster,
+  }));
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: getSpreadsheetId(),
+    range: QNA_RANGE_DATA,
+    valueInputOption: RAW_INPUT,
+    requestBody: {
+      values: items.map((data, i) => qnaToRowValues(created[i].id, data, updated_at)),
+    },
+  });
+
+  return created;
 }
 
 async function findQnaRowIndex(id: string): Promise<number> {
@@ -238,7 +292,7 @@ export async function updateQna(id: string, data: QnaInput): Promise<QnaRow> {
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
     range: `${QNA_SHEET_NAME}!A${sheetRow}:I${sheetRow}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: RAW_INPUT,
     requestBody: {
       values: [qnaToRowValues(id, data, updated_at)],
     },
@@ -319,7 +373,7 @@ export async function addProject(data: ProjectInput): Promise<ProjectRow> {
   await sheets.spreadsheets.values.append({
     spreadsheetId: getSpreadsheetId(),
     range: PROJECTS_RANGE_DATA,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: RAW_INPUT,
     requestBody: {
       values: [projectToRowValues(id, data, updated_at)],
     },
@@ -357,7 +411,7 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
     range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
-    valueInputOption: "USER_ENTERED",
+    valueInputOption: RAW_INPUT,
     requestBody: {
       values: [projectToRowValues(id, data, updated_at)],
     },

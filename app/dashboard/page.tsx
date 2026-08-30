@@ -5,6 +5,7 @@ import { isAdmin } from "@/lib/roles";
 import { getDisplayName } from "@/lib/display-name";
 import GlobalSearch from "@/components/GlobalSearch";
 import DashboardKpiCards from "@/components/DashboardKpiCards";
+import DataTransfer from "@/components/DataTransfer";
 import {
   IconArrowRight,
   IconBuilding,
@@ -77,6 +78,8 @@ export default async function DashboardOverviewPage() {
       </div>
 
       <DashboardKpiCards qna={qna} projects={projects} />
+
+      <DataTransfer />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quickLinks.map((link) => (
