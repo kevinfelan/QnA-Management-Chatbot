@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { isAdmin } from "@/lib/roles";
@@ -6,7 +7,6 @@ import Sidebar from "@/components/Sidebar";
 import DashboardNav from "@/components/DashboardNav";
 import LogoutButton from "@/components/LogoutButton";
 import PullToRefresh from "@/components/PullToRefresh";
-import { IconRobotLogo } from "@/components/icons";
 
 export default async function DashboardLayout({
   children,
@@ -34,9 +34,13 @@ export default async function DashboardLayout({
           className="flex shrink-0 items-center gap-3 bg-navy px-4 pb-3 text-white shadow-md md:hidden"
           style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold text-navy">
-            <IconRobotLogo className="h-6 w-6" />
-          </div>
+          <Image
+            src="/logo-mark.png"
+            alt="QnA Setup"
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 rounded-lg object-cover"
+          />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate font-heading text-base font-semibold">QnA Setup</p>
             <p className="truncate text-xs text-white/60">

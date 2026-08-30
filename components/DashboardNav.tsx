@@ -28,9 +28,9 @@ export default function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   return (
     <nav
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center md:hidden"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      style={{ paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="pointer-events-auto mb-2 flex items-center gap-0.5 rounded-full border border-white/60 bg-white/80 p-1 shadow-lg shadow-navy/10 backdrop-blur-xl">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/60 bg-white/80 p-1 shadow-lg shadow-navy/10 backdrop-blur-xl">
         {items.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,7 +9,6 @@ import {
   IconBuilding,
   IconMessage,
   IconShield,
-  IconRobotLogo,
 } from "./icons";
 
 const BASE_ITEMS = [
@@ -31,9 +31,13 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col bg-navy px-4 py-6 md:flex">
       <div className="mb-8 flex items-center gap-2 px-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold text-navy">
-          <IconRobotLogo className="h-6 w-6" />
-        </div>
+        <Image
+          src="/logo-mark.png"
+          alt="QnA Setup"
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+        />
         <span className="font-heading text-lg font-semibold text-white">QnA Setup</span>
       </div>
 
