@@ -20,24 +20,27 @@ function isActive(pathname: string, href: string) {
 export default function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const items = isAdmin ? [...BASE_ITEMS, ADMIN_ITEM] : BASE_ITEMS;
+  // grid-cols harus literal (bukan interpolasi) biar ke-scan Tailwind JIT.
+  const gridColsClass = items.length === 5 ? "grid-cols-5" : "grid-cols-4";
 
   return (
-    <nav className="border-b border-navy/10 bg-white md:hidden">
-      <div className="flex gap-1 overflow-x-auto px-4">
+    <nav
+      className="shrink-0 border-t border-navy/10 bg-white md:hidden"
+      style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+    >
+      <div className={`grid ${gridColsClass}`}>
         {items.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                active
-                  ? "border-teal text-teal"
-                  : "border-transparent text-ink/60 hover:text-ink"
+              className={`flex flex-col items-center justify-center gap-0.5 px-1 pb-1 pt-2 text-center text-[10px] font-medium leading-tight transition-colors ${
+                active ? "text-teal" : "text-ink/50 hover:text-ink"
               }`}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span>{label}</span>
             </Link>
           );
         })}

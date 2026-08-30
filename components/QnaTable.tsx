@@ -201,60 +201,113 @@ export default function QnaTable({ initialData }: QnaTableProps) {
                 </button>
 
                 {isOpen && (
-                  <div className="overflow-x-auto border-t border-navy/10">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-navy/10 bg-navy/5 text-xs uppercase tracking-wide text-navy/70">
-                          <th className="px-4 py-3 font-semibold">Kata Kunci</th>
-                          <th className="px-4 py-3 font-semibold">Pertanyaan</th>
-                          <th className="px-4 py-3 font-semibold">Kategori</th>
-                          <th className="px-4 py-3 font-semibold">Status</th>
-                          <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.rows.map((row) => (
-                          <tr key={row.id} className="border-b border-navy/5 last:border-0">
-                            <td className="px-4 py-3 align-top text-ink/80">
-                              {truncate(row.kata_kunci, 40)}
-                            </td>
-                            <td className="px-4 py-3 align-top text-ink/80">
-                              {truncate(row.pertanyaan_sample, 60)}
-                            </td>
-                            <td className="px-4 py-3 align-top text-ink/80">{row.kategori}</td>
-                            <td className="px-4 py-3 align-top">
-                              <span
-                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                  row.aktif
-                                    ? "bg-teal/10 text-teal"
-                                    : "bg-ink/10 text-ink/60"
-                                }`}
-                              >
-                                {row.aktif ? "Aktif" : "Nonaktif"}
+                  <>
+                    {/* Mobile: card list stack ke bawah, gak perlu geser samping */}
+                    <div className="divide-y divide-navy/5 border-t border-navy/10 md:hidden">
+                      {group.rows.map((row) => (
+                        <div key={row.id} className="flex flex-col gap-2 px-4 py-3 text-sm">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+                              Kata Kunci
+                            </p>
+                            <p className="text-ink/80">{row.kata_kunci || "-"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+                              Pertanyaan
+                            </p>
+                            <p className="text-ink/80">{row.pertanyaan_sample || "-"}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <div>
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+                                Kategori:{" "}
                               </span>
-                            </td>
-                            <td className="px-4 py-3 align-top text-right">
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => openEditForm(row)}
-                                  className="rounded-md border border-navy/20 px-3 py-1 text-xs font-medium text-navy hover:bg-navy/5"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(row)}
-                                  disabled={pendingDeleteId === row.id}
-                                  className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                >
-                                  {pendingDeleteId === row.id ? "Menghapus..." : "Hapus"}
-                                </button>
-                              </div>
-                            </td>
+                              <span className="text-ink/80">{row.kategori || "-"}</span>
+                            </div>
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                row.aktif ? "bg-teal/10 text-teal" : "bg-ink/10 text-ink/60"
+                              }`}
+                            >
+                              {row.aktif ? "Aktif" : "Nonaktif"}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => openEditForm(row)}
+                              className="flex-1 rounded-md border border-navy/20 px-3 py-1.5 text-xs font-medium text-navy hover:bg-navy/5"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(row)}
+                              disabled={pendingDeleteId === row.id}
+                              className="flex-1 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {pendingDeleteId === row.id ? "Menghapus..." : "Hapus"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop: tabel biasa */}
+                    <div className="hidden overflow-x-auto border-t border-navy/10 md:block">
+                      <table className="w-full min-w-[640px] text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-navy/10 bg-navy/5 text-xs uppercase tracking-wide text-navy/70">
+                            <th className="px-4 py-3 font-semibold">Kata Kunci</th>
+                            <th className="px-4 py-3 font-semibold">Pertanyaan</th>
+                            <th className="px-4 py-3 font-semibold">Kategori</th>
+                            <th className="px-4 py-3 font-semibold">Status</th>
+                            <th className="px-4 py-3 font-semibold text-right">Aksi</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {group.rows.map((row) => (
+                            <tr key={row.id} className="border-b border-navy/5 last:border-0">
+                              <td className="px-4 py-3 align-top text-ink/80">
+                                {truncate(row.kata_kunci, 40)}
+                              </td>
+                              <td className="px-4 py-3 align-top text-ink/80">
+                                {truncate(row.pertanyaan_sample, 60)}
+                              </td>
+                              <td className="px-4 py-3 align-top text-ink/80">{row.kategori}</td>
+                              <td className="px-4 py-3 align-top">
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    row.aktif
+                                      ? "bg-teal/10 text-teal"
+                                      : "bg-ink/10 text-ink/60"
+                                  }`}
+                                >
+                                  {row.aktif ? "Aktif" : "Nonaktif"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 align-top text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => openEditForm(row)}
+                                    className="rounded-md border border-navy/20 px-3 py-1 text-xs font-medium text-navy hover:bg-navy/5"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(row)}
+                                    disabled={pendingDeleteId === row.id}
+                                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    {pendingDeleteId === row.id ? "Menghapus..." : "Hapus"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             );

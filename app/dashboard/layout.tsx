@@ -5,6 +5,7 @@ import { getDisplayName } from "@/lib/display-name";
 import Sidebar from "@/components/Sidebar";
 import DashboardNav from "@/components/DashboardNav";
 import LogoutButton from "@/components/LogoutButton";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export default async function DashboardLayout({
   children,
@@ -23,11 +24,14 @@ export default async function DashboardLayout({
   const admin = isAdmin(session.user);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <Sidebar isAdmin={admin} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-navy/10 bg-white px-4 py-4 sm:px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header
+          className="flex shrink-0 items-center justify-between gap-3 border-b border-navy/10 bg-white px-4 pb-4 sm:px-6"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        >
           <div className="min-w-0">
             <p className="text-xs text-ink/50">Selamat datang,</p>
             <p className="truncate font-heading text-base font-semibold text-navy">
@@ -37,9 +41,9 @@ export default async function DashboardLayout({
           <LogoutButton />
         </header>
 
-        <DashboardNav isAdmin={admin} />
+        <PullToRefresh className="px-4 py-6 sm:px-6">{children}</PullToRefresh>
 
-        <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
+        <DashboardNav isAdmin={admin} />
       </div>
     </div>
   );

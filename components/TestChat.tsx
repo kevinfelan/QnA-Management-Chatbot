@@ -1091,15 +1091,15 @@ export default function TestChat({
   const activeCount = qnaRows.filter((r) => r.aktif).length;
 
   return (
-    <div className="flex h-[calc(100vh-260px)] min-h-[420px] flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
-      <div className="flex items-center justify-between border-b border-navy/10 bg-navy px-4 py-3 text-white">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold text-navy">
+    <div className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
+      <div className="flex items-center justify-between gap-2 border-b border-navy/10 bg-navy px-4 py-3 text-white">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-navy">
             <IconUser className="h-5 w-5" />
           </div>
-          <div>
-            <p className="font-heading text-sm font-semibold">Ivy — Sales Agent CariProperti</p>
-            <p className="text-xs text-white/60">
+          <div className="min-w-0">
+            <p className="truncate font-heading text-sm font-semibold">Ivy — Sales Agent CariProperti</p>
+            <p className="truncate text-xs text-white/60">
               {activeCount} QnA aktif • {projectRows.length} properti
               {activeProject
                 ? ` • konteks: ${extractTipeName(activeProject.spec) ? `Tipe ${extractTipeName(activeProject.spec)} (${activeProject.nama_cluster})` : activeProject.nama_cluster}`
@@ -1112,7 +1112,7 @@ export default function TestChat({
         <button
           onClick={refreshData}
           disabled={refreshing}
-          className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium hover:bg-white/10 disabled:opacity-50"
+          className="shrink-0 rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium hover:bg-white/10 disabled:opacity-50"
         >
           {refreshing ? "Memuat..." : "Refresh Data"}
         </button>
