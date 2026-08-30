@@ -35,8 +35,8 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
           src="/logo-mark.png"
           alt="QnA Setup"
           width={36}
-          height={36}
-          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+          height={38}
+          className="h-9 w-auto shrink-0 object-contain"
         />
         <span className="font-heading text-lg font-semibold text-white">QnA Setup</span>
       </div>

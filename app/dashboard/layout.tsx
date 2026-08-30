@@ -38,8 +38,8 @@ export default async function DashboardLayout({
             src="/logo-mark.png"
             alt="QnA Setup"
             width={40}
-            height={40}
-            className="h-10 w-10 shrink-0 rounded-lg object-cover"
+            height={42}
+            className="h-10 w-auto shrink-0 object-contain"
           />
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate font-heading text-base font-semibold">QnA Setup</p>
