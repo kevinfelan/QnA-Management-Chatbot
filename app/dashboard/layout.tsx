@@ -25,10 +25,10 @@ export default async function DashboardLayout({
   const admin = isAdmin(session.user);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div className="flex min-h-screen bg-background">
       <Sidebar isAdmin={admin} />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Header mobile: navy + logo, ala Nasi Panggang Baiti */}
         <header
           className="flex shrink-0 items-center gap-3 bg-navy px-4 pb-3 text-white shadow-md md:hidden"
@@ -60,7 +60,7 @@ export default async function DashboardLayout({
           <LogoutButton onDark={false} />
         </header>
 
-        <PullToRefresh className="px-4 py-6 sm:px-6">{children}</PullToRefresh>
+        <PullToRefresh className="px-4 py-6 pb-28 sm:px-6 md:pb-6">{children}</PullToRefresh>
 
         <DashboardNav isAdmin={admin} />
       </div>

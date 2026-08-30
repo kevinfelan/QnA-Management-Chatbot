@@ -17,8 +17,9 @@ const DISABLED_PREFIXES = ["/dashboard/test-chat"];
 // app native -- reload seluruh halaman (bukan cuma refetch data) supaya
 // perubahan/update terbaru di app ikut ke-ambil, dipasang di layout jadi
 // otomatis berlaku di semua modul (Dashboard, Input QnA, dst). <main> di
-// sini adalah container scroll-nya sendiri (flex-1 overflow-y-auto di
-// dalam shell h-dvh yang gak pernah scroll di level dokumen).
+// sini scroll dokumen biasa (bukan container overflow sendiri -- shell
+// dashboard gak dikunci h-dvh lagi, ngikutin pola app referensi), jadi
+// posisi "lagi di paling atas" dicek dari window.scrollY.
 export default function PullToRefresh({
   children,
   className,
@@ -35,8 +36,7 @@ export default function PullToRefresh({
 
   function handleTouchStart(e: React.TouchEvent<HTMLElement>) {
     if (disabled) return;
-    const container = e.currentTarget;
-    touchStartY.current = container.scrollTop <= 0 ? e.touches[0].clientY : null;
+    touchStartY.current = window.scrollY <= 0 ? e.touches[0].clientY : null;
   }
 
   function handleTouchMove(e: React.TouchEvent<HTMLElement>) {
@@ -65,7 +65,7 @@ export default function PullToRefresh({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`min-h-0 flex-1 overflow-y-auto ${className ?? ""}`}
+      className={className}
     >
       {!disabled && (
         <div

@@ -17,21 +17,20 @@ function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 }
 
-// Tab bar bergaya pill mengambang ala iOS 26 / Instagram: item nonaktif cuma
-// ikon, item aktif jadi bubble berlabel. Sengaja bagian dari alur normal
-// (bukan position:fixed) supaya nggak pernah tumpang tindih sama konten dan
-// gak ikut kacau kalau keyboard HP muncul -- shell dashboard udah dikunci
-// h-dvh + overflow-hidden, jadi halaman gak pernah scroll sendiri.
+// Tab bar mengambang ala iOS 26 / Instagram, persis pola app referensi
+// (Nasi-Panggang-Baiti): position:fixed nempel ke bawah layar beneran,
+// pill transparan blur, item nonaktif cuma ikon, item aktif jadi bubble
+// berlabel. `main` dikasih padding-bottom biar kontennya gak ketutupan.
 export default function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const items = isAdmin ? [...BASE_ITEMS, ADMIN_ITEM] : BASE_ITEMS;
 
   return (
     <nav
-      className="flex shrink-0 justify-center px-4 pt-2 md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center md:hidden"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="flex items-center gap-0.5 rounded-full border border-navy/10 bg-white p-1 shadow-lg shadow-navy/10">
+      <div className="pointer-events-auto mb-2 flex items-center gap-0.5 rounded-full border border-white/60 bg-white/80 p-1 shadow-lg shadow-navy/10 backdrop-blur-xl">
         {items.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (

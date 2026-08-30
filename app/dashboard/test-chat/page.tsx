@@ -5,10 +5,10 @@ export default async function TestChatPage() {
   const [qna, projects] = await Promise.all([listQna(), listProjects()]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {/* disembunyikan di HP biar kotak chat bisa penuh dari atas; desktop
           masih ada ruang jadi tetap ditampilkan buat konteks. */}
-      <div className="hidden shrink-0 sm:block">
+      <div className="hidden sm:block">
         <h2 className="font-heading text-lg font-semibold text-navy">Test Chat</h2>
         <p className="text-sm text-ink/60">
           Simulasikan percakapan customer untuk mengecek apakah data QnA dan
