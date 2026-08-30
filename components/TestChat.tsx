@@ -1144,7 +1144,7 @@ export default function TestChat({
   const activeCount = qnaRows.filter((r) => r.aktif).length;
 
   return (
-    <div className="flex h-[calc(100svh-250px)] min-h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
+    <div className="flex h-[calc(100svh-210px)] min-h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-xl border border-navy/10 bg-white">
       <div className="flex items-center justify-between gap-2 border-b border-navy/10 bg-navy px-4 py-3 text-white">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-navy">
