@@ -26,6 +26,7 @@ export default function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const items = isAdmin ? [...BASE_ITEMS, ADMIN_ITEM] : BASE_ITEMS;
   const [compact, setCompact] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   useEffect(() => {
     let lastY = window.scrollY;
@@ -40,8 +41,26 @@ export default function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Nav "fixed bottom-0" ini ngikutin layout viewport, bukan visual
+  // viewport -- pas keyboard HP kebuka, dia bisa ke-render ngambang aneh
+  // di tengah layar (di atas keyboard). Deteksi keyboard lewat susutnya
+  // visualViewport, terus sembunyiin aja navnya biar gak berantakan.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function onResize() {
+      setKeyboardOpen(vv!.height < window.innerHeight * 0.75);
+    }
+    onResize();
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
+
+  if (keyboardOpen) return null;
+
   return (
     <nav
+      data-bottom-nav
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center md:hidden"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >

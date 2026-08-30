@@ -7,7 +7,13 @@
   --foreground: #3b2a1a;
 }
 
+html,
 body {
   background: var(--background);
   color: var(--foreground);
+  /* jaring pengaman: gak ada satupun bagian app ini yang sengaja butuh
+     scroll horizontal di level halaman -- kalau ada elemen yang meleber
+     karena bug, ini nyegah jadi bisa digeser kanan-kiri (tabel yg
+     sengaja overflow-x-auto di dalamnya tetap jalan normal). */
+  overflow-x: hidden;
 }
