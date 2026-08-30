@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { QnaRow } from "@/lib/sheets";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import QnaForm, { type QnaFormValues } from "./QnaForm";
 
 type QnaTableProps = {
@@ -53,6 +54,8 @@ export default function QnaTable({ initialData }: QnaTableProps) {
   const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+
+  useBodyScrollLock(formOpen);
 
   const groups = useMemo(() => groupByCluster(rows), [rows]);
   const clusterNames = useMemo(

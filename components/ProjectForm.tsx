@@ -141,7 +141,7 @@ export default function ProjectForm({
           list="cluster-suggestions"
           value={namaCluster}
           onChange={(e) => setNamaCluster(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
         {existingClusters.length > 0 && (
           <datalist id="cluster-suggestions">
@@ -165,7 +165,7 @@ export default function ProjectForm({
           type="text"
           value={daerah}
           onChange={(e) => setDaerah(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
       </div>
 
@@ -179,7 +179,7 @@ export default function ProjectForm({
           value={spec}
           onChange={(e) => setSpec(e.target.value)}
           placeholder="Contoh: LT 90 / LB 60, 2KT 1KM, harga mulai 500jt"
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
       </div>
 

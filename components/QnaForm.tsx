@@ -75,7 +75,7 @@ export default function QnaForm({
           list="qna-cluster-suggestions"
           value={namaCluster}
           onChange={(e) => setNamaCluster(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
         {existingClusters.length > 0 && (
           <datalist id="qna-cluster-suggestions">
@@ -98,7 +98,7 @@ export default function QnaForm({
           type="text"
           value={kataKunci}
           onChange={(e) => setKataKunci(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
         <p className="text-xs text-ink/50">Pisahkan dengan koma, contoh: harga, cicilan, dp</p>
       </div>
@@ -112,7 +112,7 @@ export default function QnaForm({
           type="text"
           value={pertanyaanSample}
           onChange={(e) => setPertanyaanSample(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
       </div>
 
@@ -125,7 +125,7 @@ export default function QnaForm({
           rows={4}
           value={jawaban}
           onChange={(e) => setJawaban(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
       </div>
 
@@ -139,7 +139,7 @@ export default function QnaForm({
           list="qna-kategori-suggestions"
           value={kategori}
           onChange={(e) => setKategori(e.target.value)}
-          className="rounded-md border border-navy/20 px-3 py-2 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
         />
         {existingKategori.length > 0 && (
           <datalist id="qna-kategori-suggestions">
