@@ -44,30 +44,33 @@ export default async function DashboardOverviewPage() {
       .filter(Boolean)
   );
 
+  // Gradasi tiap kartu KPI: turunan warna palette fantasy adventure kita
+  // sendiri (teal & navy = hijau, gold & cocoa = coklat muda) -- bukan warna
+  // dari app referensi, cuma pola kartunya yang dicontek.
   const stats = [
     {
       label: "Kata Kunci Unik",
       value: uniqueKeywords.size,
       Icon: IconTag,
-      accent: "bg-teal/10 text-teal",
+      gradient: "from-teal to-[#35553A]",
     },
     {
       label: "Pertanyaan Tersimpan",
       value: totalPertanyaan,
       Icon: IconMessage,
-      accent: "bg-navy/10 text-navy",
+      gradient: "from-[#B8865A] to-[#815E3F]",
     },
     {
       label: "Format Jawaban (Kategori)",
       value: uniqueKategori.size,
       Icon: IconLayers,
-      accent: "bg-gold/20 text-gold",
+      gradient: "from-gold to-[#8D7135]",
     },
     {
       label: "Database Properti",
       value: projects.length,
       Icon: IconBuilding,
-      accent: "bg-teal/10 text-teal",
+      gradient: "from-navy to-[#21352A]",
     },
   ];
 
@@ -98,19 +101,19 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="relative overflow-hidden rounded-xl bg-navy p-6 text-white sm:p-8">
-        <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-gold/20" />
-        <div className="pointer-events-none absolute -right-2 bottom-[-2.5rem] h-28 w-28 rounded-full bg-teal/25" />
-        <div className="relative flex flex-col gap-2">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-gold">
-            <IconSparkle className="h-3.5 w-3.5" />
+      <div className="relative overflow-hidden rounded-xl bg-navy p-4 text-white sm:p-5">
+        <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gold/20" />
+        <div className="pointer-events-none absolute -right-2 bottom-[-1.5rem] h-16 w-16 rounded-full bg-teal/25" />
+        <div className="relative flex flex-col gap-1">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-gold">
+            <IconSparkle className="h-3 w-3" />
             Ringkasan
           </span>
-          <h1 className="break-words font-heading text-2xl font-bold sm:text-3xl">
+          <h1 className="break-words font-heading text-lg font-bold sm:text-xl">
             Selamat datang{getDisplayName(session?.user) ? "," : ""}{" "}
             {getDisplayName(session?.user)}
           </h1>
-          <p className="max-w-xl text-sm text-white/70">
+          <p className="max-w-xl text-xs text-white/70">
             Pantau data QnA dan database properti chatbot WhatsApp dari satu
             tempat
             {uniqueClusters.size > 0
@@ -120,34 +123,34 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-xl border border-navy/10 bg-white p-5 transition-shadow hover:shadow-md"
+            className={`rounded-xl bg-gradient-to-br p-4 text-white shadow-sm ${s.gradient}`}
           >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${s.accent}`}>
-              <s.Icon className="h-5 w-5" />
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-medium text-white/80">{s.label}</span>
+              <s.Icon className="h-5 w-5 shrink-0 text-white/70" />
             </div>
-            <p className="mt-4 font-heading text-3xl font-semibold text-navy">{s.value}</p>
-            <p className="mt-1 text-sm text-ink/60">{s.label}</p>
+            <p className="mt-3 font-heading text-3xl font-semibold leading-tight">{s.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quickLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="group flex items-center gap-4 rounded-xl border border-navy/10 bg-white p-5 transition-colors hover:border-teal/40 hover:bg-teal/5"
+            className="group flex items-center gap-3 rounded-xl border border-navy/10 bg-white p-3 transition-colors hover:border-teal/40 hover:bg-teal/5"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-navy text-gold">
-              <link.Icon className="h-5 w-5" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy text-gold">
+              <link.Icon className="h-4 w-4" />
             </div>
-            <div className="flex-1">
-              <p className="font-heading font-semibold text-navy">{link.label}</p>
-              <p className="text-xs text-ink/60">{link.desc}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-heading text-sm font-semibold text-navy">{link.label}</p>
+              <p className="truncate text-xs text-ink/60">{link.desc}</p>
             </div>
             <IconArrowRight className="h-4 w-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-1 group-hover:text-teal" />
           </Link>
