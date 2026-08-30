@@ -13,7 +13,7 @@ publik).
   kategori (format jawaban), dan jumlah database properti. Ada search bar
   yang cari lintas data QnA (kata kunci, pertanyaan, jawaban, kategori,
   cluster) dan Database Project (nama cluster, daerah, spec) sekaligus.
-- **Input QnA** — CRUD data QnA yang dibaca chatbot WhatsApp, dikelompokkan
+- **Knowledge Base** — CRUD data QnA yang dibaca chatbot WhatsApp, dikelompokkan
   per cluster (accordion, sama seperti Database Project) karena tiap cluster
   bisa punya format jawaban berbeda. Field Kategori berupa dropdown
   autocomplete dari kategori yang sudah pernah dipakai di cluster manapun.

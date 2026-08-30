@@ -13,7 +13,7 @@ import {
 
 const BASE_ITEMS = [
   { href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
-  { href: "/dashboard/qna", label: "Input QnA", Icon: IconEdit },
+  { href: "/dashboard/qna", label: "Knowledge Base", Icon: IconEdit },
   { href: "/dashboard/projects", label: "Database Project", Icon: IconBuilding },
   { href: "/dashboard/test-chat", label: "Test Chat", Icon: IconMessage },
 ];

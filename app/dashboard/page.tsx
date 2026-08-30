@@ -4,15 +4,13 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { isAdmin } from "@/lib/roles";
 import { getDisplayName } from "@/lib/display-name";
 import GlobalSearch from "@/components/GlobalSearch";
+import DashboardKpiCards from "@/components/DashboardKpiCards";
 import {
   IconArrowRight,
   IconBuilding,
   IconEdit,
-  IconLayers,
-  IconMessage,
   IconShield,
   IconSparkle,
-  IconTag,
 } from "@/components/icons";
 
 export default async function DashboardOverviewPage() {
@@ -23,61 +21,16 @@ export default async function DashboardOverviewPage() {
 
   const [qna, projects] = await Promise.all([listQna(), listProjects()]);
 
-  const totalPertanyaan = qna.length;
-
-  const uniqueKeywords = new Set(
-    qna.flatMap((row) =>
-      row.kata_kunci
-        .split(",")
-        .map((k) => k.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-
-  const uniqueKategori = new Set(
-    qna.map((row) => row.kategori.trim()).filter(Boolean)
-  );
-
   const uniqueClusters = new Set(
     [...qna.map((r) => r.nama_cluster), ...projects.map((r) => r.nama_cluster)]
       .map((c) => c.trim())
       .filter(Boolean)
   );
 
-  // Gradasi tiap kartu KPI: turunan warna palette fantasy adventure kita
-  // sendiri (teal & navy = hijau, gold & cocoa = coklat muda) -- bukan warna
-  // dari app referensi, cuma pola kartunya yang dicontek.
-  const stats = [
-    {
-      label: "Kata Kunci Unik",
-      value: uniqueKeywords.size,
-      Icon: IconTag,
-      gradient: "from-teal to-[#35553A]",
-    },
-    {
-      label: "Pertanyaan Tersimpan",
-      value: totalPertanyaan,
-      Icon: IconMessage,
-      gradient: "from-[#B8865A] to-[#815E3F]",
-    },
-    {
-      label: "Format Jawaban (Kategori)",
-      value: uniqueKategori.size,
-      Icon: IconLayers,
-      gradient: "from-gold to-[#8D7135]",
-    },
-    {
-      label: "Database Properti",
-      value: projects.length,
-      Icon: IconBuilding,
-      gradient: "from-navy to-[#21352A]",
-    },
-  ];
-
   const quickLinks = [
     {
       href: "/dashboard/qna",
-      label: "Input QnA",
+      label: "Knowledge Base",
       desc: "Kelola pertanyaan & jawaban chatbot",
       Icon: IconEdit,
     },
@@ -123,20 +76,7 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={`rounded-xl bg-gradient-to-br p-4 text-white shadow-sm ${s.gradient}`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-white/80">{s.label}</span>
-              <s.Icon className="h-5 w-5 shrink-0 text-white/70" />
-            </div>
-            <p className="mt-3 font-heading text-3xl font-semibold leading-tight">{s.value}</p>
-          </div>
-        ))}
-      </div>
+      <DashboardKpiCards qna={qna} projects={projects} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quickLinks.map((link) => (
