@@ -1169,7 +1169,7 @@ export default function TestChat({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Tulis pertanyaan seperti calon customer..."
           disabled={sending}
-          className="min-w-0 flex-1 rounded-full border border-navy/20 px-4 py-2 text-xs outline-none focus:border-teal focus:ring-1 focus:ring-teal disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-full border border-navy/20 px-4 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal disabled:opacity-50"
         />
         <button
           type="submit"
