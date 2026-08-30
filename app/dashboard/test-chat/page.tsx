@@ -5,8 +5,8 @@ export default async function TestChatPage() {
   const [qna, projects] = await Promise.all([listQna(), listProjects()]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="shrink-0">
+    <div className="flex flex-col gap-4">
+      <div>
         <h2 className="font-heading text-lg font-semibold text-navy">Test Chat</h2>
         <p className="text-sm text-ink/60">
           Simulasikan percakapan customer untuk mengecek apakah data QnA dan

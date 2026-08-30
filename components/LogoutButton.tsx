@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase-client";
 
-export default function LogoutButton() {
+export default function LogoutButton({ onDark = true }: { onDark?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,11 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={loading}
-      className="rounded-md border border-white/20 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-60"
+      className={`shrink-0 rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${
+        onDark
+          ? "border-white/20 text-white hover:bg-white/10"
+          : "border-navy/20 text-navy hover:bg-navy/5"
+      }`}
     >
       {loading ? "Keluar..." : "Keluar"}
     </button>

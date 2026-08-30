@@ -8,7 +8,9 @@ const PULL_MAX = 100;
 // bungkus <main> dashboard biar bisa "tarik ke bawah buat refresh" kayak
 // app native -- reload seluruh halaman (bukan cuma refetch data) supaya
 // perubahan/update terbaru di app ikut ke-ambil, dipasang di layout jadi
-// otomatis berlaku di semua modul (Dashboard, Input QnA, dst).
+// otomatis berlaku di semua modul (Dashboard, Input QnA, dst). <main> di
+// sini scroll dokumen biasa (bukan container overflow sendiri), jadi
+// posisi "lagi di paling atas" dicek dari window.scrollY.
 export default function PullToRefresh({
   children,
   className,
@@ -18,14 +20,10 @@ export default function PullToRefresh({
 }) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const containerRef = useRef<HTMLElement>(null);
   const touchStartY = useRef<number | null>(null);
 
   function handleTouchStart(e: React.TouchEvent<HTMLElement>) {
-    touchStartY.current =
-      containerRef.current && containerRef.current.scrollTop <= 0
-        ? e.touches[0].clientY
-        : null;
+    touchStartY.current = window.scrollY <= 0 ? e.touches[0].clientY : null;
   }
 
   function handleTouchMove(e: React.TouchEvent<HTMLElement>) {
@@ -50,11 +48,10 @@ export default function PullToRefresh({
 
   return (
     <main
-      ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`min-h-0 flex-1 overflow-y-auto ${className ?? ""}`}
+      className={className}
     >
       <div
         className="flex items-center justify-center overflow-hidden text-xs text-ink/40 transition-[height]"
