@@ -8,23 +8,31 @@ export function useBodyScrollLock(locked: boolean) {
   useEffect(() => {
     if (!locked) return;
 
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    const previousPosition = style.position;
-    const previousTop = style.top;
-    const previousWidth = style.width;
+    // Body-nya dikunci fixed (trik andalan buat iOS Safari), tapi <html>
+    // sendiri juga perlu dikunci -- kalau nggak, itu yang jadi viewport
+    // scroll di Safari begitu body dikeluarkan dari flow, jadi masih
+    // nyisain celah kecil yang bisa digeser di bagian bawah.
+    const htmlStyle = document.documentElement.style;
+    const bodyStyle = document.body.style;
+    const previousHtmlOverflow = htmlStyle.overflow;
+    const previousBodyOverflow = bodyStyle.overflow;
+    const previousBodyPosition = bodyStyle.position;
+    const previousBodyTop = bodyStyle.top;
+    const previousBodyWidth = bodyStyle.width;
     const scrollY = window.scrollY;
 
-    style.overflow = "hidden";
-    style.position = "fixed";
-    style.top = `-${scrollY}px`;
-    style.width = "100%";
+    htmlStyle.overflow = "hidden";
+    bodyStyle.overflow = "hidden";
+    bodyStyle.position = "fixed";
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.width = "100%";
 
     return () => {
-      style.overflow = previousOverflow;
-      style.position = previousPosition;
-      style.top = previousTop;
-      style.width = previousWidth;
+      htmlStyle.overflow = previousHtmlOverflow;
+      bodyStyle.overflow = previousBodyOverflow;
+      bodyStyle.position = previousBodyPosition;
+      bodyStyle.top = previousBodyTop;
+      bodyStyle.width = previousBodyWidth;
       window.scrollTo(0, scrollY);
     };
   }, [locked]);
