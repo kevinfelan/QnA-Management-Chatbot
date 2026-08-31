@@ -217,5 +217,85 @@ export function buildTelebotEntries(
     });
   }
 
+  // --- 3. Satu entri per DAERAH ---
+  //
+  // Ini lahir dari kegagalan nyata: customer tanya "ada project di sekitaran
+  // BSD?" dan bot menjawab tidak tahu, PADAHAL "bsd" sudah terdaftar sebagai
+  // kata kunci. Penyebabnya: search_knowledge_base milik Telebot ternyata
+  // bukan pencocokan substring seperti Ivy, melainkan pencarian berbasis
+  // kemiripan makna -- dan yang paling menentukan adalah teks di kolom
+  // Question, bukan kolom Keywords. Bukti pendukungnya: kata "Boleh" yang
+  // tidak punya kecocokan kata kunci sama sekali malah menarik jawaban
+  // "Bisa survey lokasi dulu?" karena maknanya mirip.
+  //
+  // Karena itu nama daerah harus muncul di PERTANYAAN-nya, bukan cuma di
+  // kata kunci. Tanpa entri ini, tidak ada satu pun pertanyaan kita yang
+  // menyebut BSD / Bekasi / Bandung / Summarecon.
+  const byDaerah = new Map<string, ProjectRow[]>();
+  for (const p of projects) {
+    const key = p.daerah.trim();
+    if (!key) continue;
+    if (!byDaerah.has(key)) byDaerah.set(key, []);
+    byDaerah.get(key)!.push(p);
+  }
+
+  for (const [daerah, units] of byDaerah) {
+    const clusters = [...new Set(units.map((u) => u.nama_cluster.trim()).filter(Boolean))];
+    const bubbles: TelebotBubble[] = [];
+
+    bubbles.push({
+      type: "text",
+      content:
+        clusters.length > 1
+          ? `Ada kak! Di area ${daerah} kita punya ${clusters.length} cluster: ${clusters.join(", ")}. Aku kirimkan detailnya ya 🏠`
+          : `Ada kak! Di area ${daerah} kita punya ${clusters[0]}. Aku kirimkan detailnya ya 🏠`,
+      media_url: null,
+      sort_order: 0,
+    });
+
+    for (const unit of units) {
+      const fotos = parseUrls(unit.foto_url);
+      if (fotos.length === 0) {
+        bubbles.push({
+          type: "text",
+          content: specToText(unit),
+          media_url: null,
+          sort_order: bubbles.length,
+        });
+        continue;
+      }
+      for (const url of fotos) {
+        bubbles.push({
+          type: "image",
+          content: specToText(unit),
+          media_url: url,
+          sort_order: bubbles.length,
+        });
+      }
+    }
+
+    // Sengaja TIDAK memakai nama daerah polos ("bekasi") -- kata itu sudah
+    // dipakai QnA harga cluster terkait, nanti jadi rebutan. Yang dipakai
+    // bentuk berfrasa, jadi tidak ada yang persis sama.
+    const d = daerah.toLowerCase();
+    const keywords = [
+      `di ${d}`,
+      `area ${d}`,
+      `sekitar ${d}`,
+      `sekitaran ${d}`,
+      `project di ${d}`,
+      `properti di ${d}`,
+      `rumah di ${d}`,
+      `perumahan ${d}`,
+    ].join(", ");
+
+    entries.push({
+      category: "AREA",
+      question: `Ada project di ${daerah}?`,
+      keywords,
+      bubbles,
+    });
+  }
+
   return entries;
 }
