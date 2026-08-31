@@ -93,6 +93,12 @@ function stripClusterWord(name: string): string {
   return name.replace(/^cluster\s+/i, "").trim();
 }
 
+// ambil nama tipe rumah dari spec, mis. "Tipe Cempaka" -> "Cempaka"
+function extractTipeName(spec: string): string | null {
+  const m = spec.match(/Tipe\s+([A-Za-z]+(?:\s+\d+)?)/i);
+  return m ? m[1].trim() : null;
+}
+
 export function buildTelebotEntries(
   qna: QnaRow[],
   projects: ProjectRow[]
@@ -294,6 +300,62 @@ export function buildTelebotEntries(
       question: `Ada project di ${daerah}?`,
       keywords,
       bubbles,
+    });
+  }
+
+  // --- 4. Satu entri PROMO per cluster ---
+  //
+  // Lahir dari kegagalan nyata juga: customer tanya "cluster yang di cibubur
+  // tadi, ada promoan nggak?" dan Delia mengulang jawaban promo generik yang
+  // sama persis dengan pesan sebelumnya. Penyebabnya, entri promo cuma ada
+  // SATU dan sifatnya umum ("Sekarang ada promo apa?") yang ujungnya malah
+  // balik bertanya "kakak tertarik cluster yang mana?" -- padahal begitu
+  // customer menjawab, tidak ada entri yang bisa melayani. Jadi berputar.
+  //
+  // Datanya sendiri sudah ada sejak awal, tersimpan di kolom spec tiap unit,
+  // cuma tidak pernah dimunculkan sebagai entri sendiri.
+  for (const [cluster, units] of byCluster) {
+    const perUnit = units
+      .map((u) => {
+        const promo = parseSpecLines(u.spec).filter((l) =>
+          /promo|free|bonus|cashback|diskon|dp mulai/i.test(l)
+        );
+        return promo.length ? { unit: u, promo } : null;
+      })
+      .filter((x): x is { unit: ProjectRow; promo: string[] } => x !== null);
+
+    if (perUnit.length === 0) continue;
+
+    const baris: string[] = [`Promo di ${cluster} 🎉`];
+    for (const { unit, promo } of perUnit) {
+      const tipe = extractTipeName(unit.spec);
+      baris.push("");
+      baris.push(tipe ? `📍 Tipe ${tipe}` : `📍 ${unit.nama_cluster}`);
+      for (const p of promo) baris.push(`• ${p}`);
+    }
+
+    const short = stripClusterWord(cluster).toLowerCase();
+    const keywords = [
+      `promo ${short}`,
+      `promonya ${short}`,
+      `diskon ${short}`,
+      `cashback ${short}`,
+      `bonus ${short}`,
+      `penawaran ${short}`,
+    ].join(", ");
+
+    entries.push({
+      category: "PROMO",
+      question: `Promo apa di ${cluster}?`,
+      keywords,
+      bubbles: [
+        {
+          type: "text",
+          content: baris.join("\n"),
+          media_url: null,
+          sort_order: 0,
+        },
+      ],
     });
   }
 
