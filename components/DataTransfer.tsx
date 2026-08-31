@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
-import { IconArrowRight, IconLayers } from "./icons";
+import { IconArrowRight, IconLayers, IconMessage } from "./icons";
 
 type PreviewRow = {
   baris: number;
@@ -34,7 +34,7 @@ export default function DataTransfer() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"app" | "telebot" | null>(null);
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +44,16 @@ export default function DataTransfer() {
 
   useBodyScrollLock(preview !== null);
 
-  async function handleExport() {
-    setExporting(true);
+  async function handleExport(
+    endpoint: string,
+    fallbackName: string,
+    which: "app" | "telebot"
+  ) {
+    setExporting(which);
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch("/api/export");
+      const res = await fetch(endpoint);
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         throw new Error(json?.error || "Gagal mengunduh data.");
@@ -57,7 +61,7 @@ export default function DataTransfer() {
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="(.+?)"/);
-      const name = match ? match[1] : "qna-setup.xlsx";
+      const name = match ? match[1] : fallbackName;
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -72,7 +76,7 @@ export default function DataTransfer() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengunduh data.");
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -143,8 +147,8 @@ export default function DataTransfer() {
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
-          onClick={handleExport}
-          disabled={exporting}
+          onClick={() => handleExport("/api/export", "qna-setup.xlsx", "app")}
+          disabled={exporting !== null}
           className="group flex items-center gap-3 rounded-xl border border-navy/10 p-3 text-left transition-colors hover:border-teal/40 hover:bg-teal/5 disabled:opacity-60"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy text-gold">
@@ -152,7 +156,7 @@ export default function DataTransfer() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-heading text-sm font-semibold text-navy">
-              {exporting ? "Menyiapkan..." : "Export ke Excel"}
+              {exporting === "app" ? "Menyiapkan..." : "Export ke Excel"}
             </p>
             <p className="truncate text-xs text-ink/60">
               QnA &amp; Database Project, 2 sheet
@@ -178,6 +182,35 @@ export default function DataTransfer() {
           <IconArrowRight className="h-4 w-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-1 group-hover:text-teal" />
         </button>
       </div>
+
+      {/* Export khusus buat Knowledge Base chatbot kantor (Cari Properti
+          Telebot) -- formatnya beda dari export biasa: satu sheet
+          "Knowledge Base" dengan kolom ID/Category/Question/Keywords/
+          Items_JSON, dan foto properti ikut jadi gelembung jawaban. */}
+      <button
+        onClick={() =>
+          handleExport(
+            "/api/export/telebot",
+            "telebot-knowledge-base.xlsx",
+            "telebot"
+          )
+        }
+        disabled={exporting !== null}
+        className="group mt-3 flex w-full items-center gap-3 rounded-xl border border-gold/40 bg-gold/5 p-3 text-left transition-colors hover:border-gold hover:bg-gold/10 disabled:opacity-60"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold text-navy">
+          <IconMessage className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-heading text-sm font-semibold text-navy">
+            {exporting === "telebot" ? "Menyiapkan..." : "Export untuk Telebot"}
+          </p>
+          <p className="truncate text-xs text-ink/60">
+            Siap unggah ke Knowledge Base chatbot kantor, foto ikut terkirim
+          </p>
+        </div>
+        <IconArrowRight className="h-4 w-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-1 group-hover:text-gold" />
+      </button>
 
       <input
         ref={fileRef}
