@@ -30,6 +30,20 @@ export type TelebotEntry = {
 };
 
 export const TELEBOT_SHEET_NAME = "Knowledge Base";
+
+// Nama agen di chatbot kantor. Jawaban di database kita ditulis dengan
+// nama "Ivy" (persona simulator Test Chat di app ini), sedangkan bot kantor
+// bernama Delia sesuai system prompt mereka. Penggantian sengaja dilakukan
+// SAAT EXPORT saja -- data di Google Sheets tetap "Ivy" supaya Test Chat di
+// app ini tidak ikut berubah nama.
+const APP_AGENT_NAME = "Ivy";
+export const TELEBOT_AGENT_NAME = "Delia";
+
+function renameAgent(text: string): string {
+  // \b biar cuma kena kata utuh, bukan potongan di tengah kata lain
+  return text.replace(new RegExp(`\\b${APP_AGENT_NAME}\\b`, "gi"), TELEBOT_AGENT_NAME);
+}
+
 export const TELEBOT_COLUMNS = [
   "ID",
   "Category",
@@ -104,7 +118,7 @@ export function buildTelebotEntries(
       "Pertanyaan umum";
 
     const bubbles: TelebotBubble[] = [
-      { type: "text", content: jawaban, media_url: null, sort_order: 0 },
+      { type: "text", content: renameAgent(jawaban), media_url: null, sort_order: 0 },
     ];
 
     // Kalau QnA ini terikat ke satu cluster, foto unit cluster itu ikut
