@@ -298,8 +298,24 @@ export function buildTelebotEntries(
     // menempel di belakang dan pertanyaan penggali minat jadi terkubur di
     // atas foto -- customer sudah keburu scroll.
     if (units && /\[FOTO\]/.test(jawaban)) {
-      const [sebelum, sesudah] = renameAgent(jawaban).split(/\n*\[FOTO\]\n*/);
+      const [sebelum, sesudahMentah] = renameAgent(jawaban).split(/\n*\[FOTO\]\n*/);
+
+      // Penanda [CAPTION]: teks sesudahnya TIDAK jadi gelembung sendiri,
+      // melainkan disambung ke caption foto terakhir.
+      //
+      // Ini bukan soal rapi-rapian. Gelembung teks sampai di HP customer
+      // lebih cepat daripada gambar, jadi teks apa pun yang ditaruh setelah
+      // foto akan menyalip dan muncul menyelip di tengah-tengah foto.
+      // Satu-satunya cara memastikan sesuatu terbaca SETELAH foto adalah
+      // menempelkannya ke foto terakhir -- karena satu pesan tidak bisa
+      // menyalip dirinya sendiri.
+      const [sesudah, keCaption] = (sesudahMentah || "").split(/\n*\[CAPTION\]\n*/);
       const foto = fotoBubbles(units, 1);
+      if (keCaption && keCaption.trim() && foto.length) {
+        const t = foto[foto.length - 1];
+        t.content = t.content ? `${t.content}\n\n${keCaption.trim()}` : keCaption.trim();
+      }
+
       bubbles.length = 0;
       for (const b of teksBubbles(sebelum, bubbles.length)) bubbles.push(b);
       for (const b of foto) bubbles.push({ ...b, sort_order: bubbles.length });
