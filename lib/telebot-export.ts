@@ -76,6 +76,60 @@ function specToText(project: ProjectRow): string {
   return `${header}\n\n${lines.map((l) => `• ${l}`).join("\n")}`;
 }
 
+// Paling banyak 4 foto per jawaban. Sebelumnya SEMUA foto cluster dikirim
+// (6 foto), masing-masing dengan caption spec lengkap -- di WhatsApp itu
+// terbaca sebagai tembok informasi yang mengulang-ulang hal yang sama.
+const MAKS_FOTO = 4;
+
+// Caption ringkas bergaya agent: satu blok pendek beremoji, bukan daftar
+// butir panjang. Dipakai HANYA di foto pertama; foto berikutnya tanpa caption
+// supaya tidak ada spec yang terulang 4 kali.
+function specToCaption(project: ProjectRow): string {
+  const spec = project.spec || "";
+  const baris: string[] = [
+    project.daerah
+      ? `🏠 ${project.nama_cluster} — ${project.daerah}`
+      : `🏠 ${project.nama_cluster}`,
+  ];
+
+  const harga = spec.match(/Harga mulai [^.]+/i)?.[0];
+  if (harga) baris.push(`💰 ${harga.replace(/^Harga mulai /i, "Mulai ")}`);
+
+  const sisa = spec
+    .replace(harga || "", "")
+    .split(/\.\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const tipe = sisa.find((s) => /LB |LT |Tipe|T\d/i.test(s));
+  if (tipe) baris.push(`📐 ${tipe}`);
+
+  const promo = sisa.find((s) => /free|promo|diskon|bonus|utj|cara bayar/i.test(s));
+  if (promo) baris.push(`✨ ${promo}`);
+
+  return baris.join("\n");
+}
+
+// Foto cluster dengan caption hanya di foto pertama, dibatasi MAKS_FOTO.
+function fotoBubbles(
+  units: ProjectRow[],
+  mulaiDari: number
+): TelebotBubble[] {
+  const out: TelebotBubble[] = [];
+  for (const unit of units) {
+    for (const url of parseUrls(unit.foto_url)) {
+      if (out.length >= MAKS_FOTO) return out;
+      out.push({
+        type: "image",
+        content: out.length === 0 ? specToCaption(unit) : "",
+        media_url: url,
+        sort_order: mulaiDari + out.length,
+      });
+    }
+  }
+  return out;
+}
+
 function groupByCluster(projects: ProjectRow[]): Map<string, ProjectRow[]> {
   const map = new Map<string, ProjectRow[]>();
   for (const p of projects) {
@@ -141,21 +195,13 @@ export function buildTelebotEntries(
     // dulu?" -- kalau fotonya tetap terkirim otomatis, botnya menawarkan
     // sesuatu yang sudah dia lakukan sendiri. Belum lagi 5-6 foto per
     // pertanyaan harga itu berat di WhatsApp.
+    // "Pembuka" ikut dapat foto: itu entri untuk customer yang membuka chat
+    // cuma dengan menempel link iklan. Yang dia harapkan foto + spec, bukan
+    // ceramah lokasi.
     const cluster = row.nama_cluster.trim();
-    const kategoriFoto = /foto|gambar/i.test(row.kategori);
+    const kategoriFoto = /foto|gambar|pembuka/i.test(row.kategori);
     const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
-    if (units) {
-      for (const unit of units) {
-        for (const url of parseUrls(unit.foto_url)) {
-          bubbles.push({
-            type: "image",
-            content: specToText(unit),
-            media_url: url,
-            sort_order: bubbles.length,
-          });
-        }
-      }
-    }
+    if (units) bubbles.push(...fotoBubbles(units, bubbles.length));
 
     entries.push({
       category: row.kategori.trim() || "UMUM",
@@ -196,26 +242,20 @@ export function buildTelebotEntries(
       sort_order: 0,
     });
 
+    const adaFoto = units.some((u) => parseUrls(u.foto_url).length > 0);
+    if (adaFoto) bubbles.push(...fotoBubbles(units, bubbles.length));
+
     for (const unit of units) {
-      const fotos = parseUrls(unit.foto_url);
       const videos = parseUrls(unit.video_url);
 
-      if (fotos.length === 0 && videos.length === 0) {
+      if (!adaFoto && videos.length === 0) {
         bubbles.push({
           type: "text",
-          content: specToText(unit),
+          content: specToCaption(unit),
           media_url: null,
           sort_order: bubbles.length,
         });
         continue;
-      }
-      for (const url of fotos) {
-        bubbles.push({
-          type: "image",
-          content: specToText(unit),
-          media_url: url,
-          sort_order: bubbles.length,
-        });
       }
       for (const url of videos) {
         bubbles.push({
@@ -285,25 +325,15 @@ export function buildTelebotEntries(
       sort_order: 0,
     });
 
-    for (const unit of units) {
-      const fotos = parseUrls(unit.foto_url);
-      if (fotos.length === 0) {
-        bubbles.push({
-          type: "text",
-          content: specToText(unit),
-          media_url: null,
-          sort_order: bubbles.length,
-        });
-        continue;
-      }
-      for (const url of fotos) {
-        bubbles.push({
-          type: "image",
-          content: specToText(unit),
-          media_url: url,
-          sort_order: bubbles.length,
-        });
-      }
+    const adaFotoDaerah = units.some((u) => parseUrls(u.foto_url).length > 0);
+    if (adaFotoDaerah) bubbles.push(...fotoBubbles(units, bubbles.length));
+    else for (const unit of units) {
+      bubbles.push({
+        type: "text",
+        content: specToCaption(unit),
+        media_url: null,
+        sort_order: bubbles.length,
+      });
     }
 
     // Sengaja TIDAK memakai nama daerah polos ("bekasi") -- kata itu sudah
