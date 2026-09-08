@@ -110,6 +110,32 @@ function specToCaption(project: ProjectRow): string {
   return baris.join("\n");
 }
 
+// Satu video saja per jawaban. Video jauh lebih berat daripada foto dan
+// sebagian besar customer membukanya lewat kuota seluler -- kirim dua video
+// dalam satu jawaban itu memaksa mereka menunggu tanpa alasan.
+const MAKS_VIDEO = 1;
+
+// Video cluster, dikirim setelah foto. Agent memang mengirim video show unit,
+// jadi ini melengkapi foto, bukan menggantikan.
+function videoBubbles(
+  units: ProjectRow[],
+  mulaiDari: number
+): TelebotBubble[] {
+  const out: TelebotBubble[] = [];
+  for (const unit of units) {
+    for (const url of parseUrls(unit.video_url)) {
+      if (out.length >= MAKS_VIDEO) return out;
+      out.push({
+        type: "video",
+        content: `Video show unit ${unit.nama_cluster} 🎥`,
+        media_url: url,
+        sort_order: mulaiDari + out.length,
+      });
+    }
+  }
+  return out;
+}
+
 // Foto cluster dengan caption hanya di foto pertama, dibatasi MAKS_FOTO.
 function fotoBubbles(
   units: ProjectRow[],
@@ -201,7 +227,14 @@ export function buildTelebotEntries(
     const cluster = row.nama_cluster.trim();
     const kategoriFoto = /foto|gambar|pembuka/i.test(row.kategori);
     const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
-    if (units) bubbles.push(...fotoBubbles(units, bubbles.length));
+    if (units) {
+      bubbles.push(...fotoBubbles(units, bubbles.length));
+      // video hanya di entri FOTO, bukan di entri Pembuka -- pembuka sudah
+      // berisi sapaan + 4 foto + spec, menambah video di situ kelewat berat
+      if (/foto|gambar/i.test(row.kategori)) {
+        bubbles.push(...videoBubbles(units, bubbles.length));
+      }
+    }
 
     // Penanda [FOTO] di dalam jawaban menentukan DI MANA foto disisipkan.
     // Dipakai supaya urutan kirimnya sama seperti agent: sapa dulu, lalu
