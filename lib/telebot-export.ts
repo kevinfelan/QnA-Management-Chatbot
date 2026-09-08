@@ -125,6 +125,20 @@ function specToCaption(project: ProjectRow): string {
     if (hargaLantai2) baris.push(`• Mulai ${hargaLantai2} (2 lantai)`);
   }
 
+  // Promo ikut masuk ke CAPTION, bukan jadi gelembung teks tersendiri.
+  //
+  // Sebabnya urutan kirim: gelembung teks sampai di HP customer lebih cepat
+  // daripada gambar, jadi teks promo yang secara urutan ada di belakang foto
+  // malah muncul menyelip di tengah-tengah foto. Kalau ditempel jadi satu
+  // caption dengan spec, urutannya dijamin -- keduanya satu pesan.
+  const promo = spec.match(/Promo:\s*([^.]+)/i)?.[1];
+  if (promo) {
+    baris.push("", "🎁 Yang bikin worth it:");
+    for (const x of promo.split(";").map((s) => s.trim()).filter(Boolean)) {
+      baris.push(`✨ ${x}`);
+    }
+  }
+
   return baris.join("\n");
 }
 
@@ -463,9 +477,15 @@ export function buildTelebotEntries(
     if (!belumAda(`Promo apa di ${cluster}?`)) continue;
     const perUnit = units
       .map((u) => {
-        const promo = parseSpecLines(u.spec).filter((l) =>
-          /promo|free|bonus|cashback|diskon|dp mulai/i.test(l)
-        );
+        // bagian "Promo: a; b; c" ditulis khusus di kolom spec -- dipecah
+        // per titik koma supaya jadi butir sendiri, bukan satu baris panjang
+        // yang masih membawa awalan "Promo:"
+        const blok = u.spec.match(/Promo:\s*([^.]+)/i)?.[1];
+        const promo = blok
+          ? blok.split(";").map((s) => s.trim()).filter(Boolean)
+          : parseSpecLines(u.spec).filter((l) =>
+              /promo|free|bonus|cashback|diskon|dp mulai/i.test(l)
+            );
         return promo.length ? { unit: u, promo } : null;
       })
       .filter((x): x is { unit: ProjectRow; promo: string[] } => x !== null);
