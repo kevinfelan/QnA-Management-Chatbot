@@ -203,6 +203,22 @@ export function buildTelebotEntries(
     const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
     if (units) bubbles.push(...fotoBubbles(units, bubbles.length));
 
+    // Penanda [FOTO] di dalam jawaban menentukan DI MANA foto disisipkan.
+    // Dipakai supaya urutan kirimnya sama seperti agent: sapa dulu, lalu
+    // foto + spec, baru kalimat penggali minat. Tanpa penanda, foto selalu
+    // menempel di belakang dan pertanyaan penggali minat jadi terkubur di
+    // atas foto -- customer sudah keburu scroll.
+    if (units && /\[FOTO\]/.test(jawaban)) {
+      const [sebelum, sesudah] = renameAgent(jawaban).split(/\n*\[FOTO\]\n*/);
+      const foto = fotoBubbles(units, 1);
+      bubbles.length = 0;
+      if (sebelum.trim())
+        bubbles.push({ type: "text", content: sebelum.trim(), media_url: null, sort_order: 0 });
+      for (const b of foto) bubbles.push({ ...b, sort_order: bubbles.length });
+      if (sesudah && sesudah.trim())
+        bubbles.push({ type: "text", content: sesudah.trim(), media_url: null, sort_order: bubbles.length });
+    }
+
     entries.push({
       category: row.kategori.trim() || "UMUM",
       question,
