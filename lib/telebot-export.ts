@@ -93,6 +93,12 @@ function stripClusterWord(name: string): string {
   return name.replace(/^cluster\s+/i, "").trim();
 }
 
+// samakan bentuk pertanyaan sebelum dibandingkan, biar beda huruf besar/kecil
+// atau tanda baca tidak lolos sebagai "pertanyaan berbeda"
+function normalizeQuestion(q: string): string {
+  return q.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 // ambil nama tipe rumah dari spec, mis. "Tipe Cempaka" -> "Cempaka"
 function extractTipeName(spec: string): string | null {
   const m = spec.match(/Tipe\s+([A-Za-z]+(?:\s+\d+)?)/i);
@@ -127,11 +133,17 @@ export function buildTelebotEntries(
       { type: "text", content: renameAgent(jawaban), media_url: null, sort_order: 0 },
     ];
 
-    // Kalau QnA ini terikat ke satu cluster, foto unit cluster itu ikut
-    // dikirim setelah teks jawabannya -- ini yang bikin bot bisa menjawab
-    // "berapa harga di X?" sambil sekalian melampirkan fotonya.
+    // Foto HANYA dilampirkan pada entri berkategori foto.
+    //
+    // Dulu foto ikut menempel di SEMUA entri yang terikat cluster, termasuk
+    // entri harga. Sekarang itu jadi salah: teks jawabannya sudah ditulis
+    // meniru gaya agent, dan ditutup dengan tawaran "Mau dikirimin fotonya
+    // dulu?" -- kalau fotonya tetap terkirim otomatis, botnya menawarkan
+    // sesuatu yang sudah dia lakukan sendiri. Belum lagi 5-6 foto per
+    // pertanyaan harga itu berat di WhatsApp.
     const cluster = row.nama_cluster.trim();
-    const units = cluster ? byCluster.get(cluster) : undefined;
+    const kategoriFoto = /foto|gambar/i.test(row.kategori);
+    const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
     if (units) {
       for (const unit of units) {
         for (const url of parseUrls(unit.foto_url)) {
@@ -153,11 +165,24 @@ export function buildTelebotEntries(
     });
   }
 
+  // Pertanyaan yang SUDAH dijawab oleh QnA buatan tangan. Entri otomatis di
+  // bawah tidak boleh menduplikasinya.
+  //
+  // Ini masalah nyata, bukan teoretis: begitu knowledge base kita punya entri
+  // Foto dan Lokasi per cluster, generator di bawah menghasilkan pertanyaan
+  // yang bunyinya PERSIS SAMA ("Boleh minta foto Cluster Araya Lake?").
+  // Pencarian Telebot berbasis kemiripan makna dan yang paling menentukan
+  // adalah kolom Question -- dua baris dengan pertanyaan identik tapi isi
+  // berbeda bikin jawaban bot jadi untung-untungan.
+  const sudahAda = new Set(entries.map((e) => normalizeQuestion(e.question)));
+  const belumAda = (q: string) => !sudahAda.has(normalizeQuestion(q));
+
   // --- 2. Satu entri "minta foto" per cluster ---
   // Di percakapan asli di Chatwoot, customer minta foto dan bot menjawab
   // tidak bisa. Entri ini yang menutup lubang itu: sekali terpanggil,
   // seluruh unit di cluster terkirim lengkap dengan spec + fotonya.
   for (const [cluster, units] of byCluster) {
+    if (!belumAda(`Boleh minta foto ${cluster}?`)) continue;
     const bubbles: TelebotBubble[] = [];
     const short = stripClusterWord(cluster);
 
@@ -246,6 +271,7 @@ export function buildTelebotEntries(
   }
 
   for (const [daerah, units] of byDaerah) {
+    if (!belumAda(`Ada project di ${daerah}?`)) continue;
     const clusters = [...new Set(units.map((u) => u.nama_cluster.trim()).filter(Boolean))];
     const bubbles: TelebotBubble[] = [];
 
@@ -315,6 +341,7 @@ export function buildTelebotEntries(
   // Datanya sendiri sudah ada sejak awal, tersimpan di kolom spec tiap unit,
   // cuma tidak pernah dimunculkan sebagai entri sendiri.
   for (const [cluster, units] of byCluster) {
+    if (!belumAda(`Promo apa di ${cluster}?`)) continue;
     const perUnit = units
       .map((u) => {
         const promo = parseSpecLines(u.spec).filter((l) =>
