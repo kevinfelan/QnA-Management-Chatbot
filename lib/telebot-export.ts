@@ -110,6 +110,23 @@ function specToCaption(project: ProjectRow): string {
   return baris.join("\n");
 }
 
+// Penanda [BUBBLE] memecah satu jawaban jadi beberapa gelembung teks
+// terpisah. Agent memang mengirim begitu: sapaan dulu satu pesan, lalu
+// "wait ya kak, aku share info projectnya", baru isinya. Kalau semuanya
+// digabung jadi satu pesan panjang, langsung terasa seperti balasan mesin.
+function teksBubbles(teks: string, mulaiDari: number): TelebotBubble[] {
+  return teks
+    .split(/\n*\[BUBBLE\]\n*/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((content, i) => ({
+      type: "text" as const,
+      content,
+      media_url: null,
+      sort_order: mulaiDari + i,
+    }));
+}
+
 // Satu video saja per jawaban. Video jauh lebih berat daripada foto dan
 // sebagian besar customer membukanya lewat kuota seluler -- kirim dua video
 // dalam satu jawaban itu memaksa mereka menunggu tanpa alasan.
@@ -209,9 +226,7 @@ export function buildTelebotEntries(
       row.kata_kunci.split(",")[0]?.trim() ||
       "Pertanyaan umum";
 
-    const bubbles: TelebotBubble[] = [
-      { type: "text", content: renameAgent(jawaban), media_url: null, sort_order: 0 },
-    ];
+    const bubbles: TelebotBubble[] = teksBubbles(renameAgent(jawaban), 0);
 
     // Foto HANYA dilampirkan pada entri berkategori foto.
     //
@@ -245,11 +260,9 @@ export function buildTelebotEntries(
       const [sebelum, sesudah] = renameAgent(jawaban).split(/\n*\[FOTO\]\n*/);
       const foto = fotoBubbles(units, 1);
       bubbles.length = 0;
-      if (sebelum.trim())
-        bubbles.push({ type: "text", content: sebelum.trim(), media_url: null, sort_order: 0 });
+      for (const b of teksBubbles(sebelum, bubbles.length)) bubbles.push(b);
       for (const b of foto) bubbles.push({ ...b, sort_order: bubbles.length });
-      if (sesudah && sesudah.trim())
-        bubbles.push({ type: "text", content: sesudah.trim(), media_url: null, sort_order: bubbles.length });
+      for (const b of teksBubbles(sesudah || "", bubbles.length)) bubbles.push(b);
     }
 
     entries.push({
