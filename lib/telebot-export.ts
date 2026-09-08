@@ -84,28 +84,46 @@ const MAKS_FOTO = 4;
 // Caption ringkas bergaya agent: satu blok pendek beremoji, bukan daftar
 // butir panjang. Dipakai HANYA di foto pertama; foto berikutnya tanpa caption
 // supaya tidak ada spec yang terulang 4 kali.
+// Caption spec ditata mengikuti format yang dipakai agent di WhatsApp:
+// nama cluster di dalam bintang, daftar tipe dengan bintang dan pemisah
+// "|", lalu harga sebagai butir. Versi sebelumnya cuma memotong kalimat
+// spec apa adanya, hasilnya padat dan tidak enak dibaca.
 function specToCaption(project: ProjectRow): string {
   const spec = project.spec || "";
-  const baris: string[] = [
-    project.daerah
-      ? `🏠 ${project.nama_cluster} — ${project.daerah}`
-      : `🏠 ${project.nama_cluster}`,
-  ];
+  const baris: string[] = [`✨ ${project.nama_cluster.toUpperCase()} ✨`];
+  if (project.daerah) baris.push(project.daerah);
 
-  const harga = spec.match(/Harga mulai [^.]+/i)?.[0];
-  if (harga) baris.push(`💰 ${harga.replace(/^Harga mulai /i, "Mulai ")}`);
+  // "Tipe 1 lantai: LB 34 m2, LT 75 m2, 2 KT, 1 KM, carport"
+  //   -> "⭐ Tipe 1 Lantai" + "LB 34 | LT 75 | 2 KT | 1 KM | Carport"
+  const tipeLantai = [...spec.matchAll(/Tipe (\d) lantai:\s*([^.]+)/gi)];
+  if (tipeLantai.length) {
+    baris.push("", "🏠 Pilihan Tipe Rumah:");
+    for (const [, lantai, isi] of tipeLantai) {
+      const bagian = isi
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => /^(LB|LT|\d+\s*(KT|KM)|carport)/i.test(s))
+        .map((s) =>
+          s.replace(/\s*m2\b/i, "").replace(/^carport$/i, "Carport")
+        );
+      baris.push(`⭐ Tipe ${lantai} Lantai`);
+      if (bagian.length) baris.push(bagian.join(" | "));
+    }
+  } else {
+    // cluster yang spec-nya cuma "Tipe: T36/60, T36/66, ..."
+    const daftar = spec.match(/Tipe:\s*([^.]+)/i)?.[1];
+    if (daftar) baris.push("", `🏠 Tipe tersedia:`, daftar.trim());
+  }
 
-  const sisa = spec
-    .replace(harga || "", "")
-    .split(/\.\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const tipe = sisa.find((s) => /LB |LT |Tipe|T\d/i.test(s));
-  if (tipe) baris.push(`📐 ${tipe}`);
-
-  const promo = sisa.find((s) => /free|promo|diskon|bonus|utj|cara bayar/i.test(s));
-  if (promo) baris.push(`✨ ${promo}`);
+  // harga ditaruh paling bawah, seperti punya agent
+  const harga = spec.match(/Harga mulai\s*([^.]+)/i)?.[1];
+  const hargaLantai2 = spec.match(/Tipe 2 lantai:[^.]*?mulai ([\d.,]+\s*M[- ]?an)/i)?.[1];
+  if (harga) {
+    baris.push("", "💰 Harga:");
+    const mulai = harga.replace(/\s*sampai.*$/i, "").trim();
+    baris.push(hargaLantai2 ? `• Mulai ${mulai} (1 lantai)` : `• Mulai ${mulai}`);
+    if (hargaLantai2) baris.push(`• Mulai ${hargaLantai2} (2 lantai)`);
+  }
 
   return baris.join("\n");
 }
@@ -159,16 +177,25 @@ function fotoBubbles(
   mulaiDari: number
 ): TelebotBubble[] {
   const out: TelebotBubble[] = [];
+  let unitTerakhir: ProjectRow | null = null;
   for (const unit of units) {
     for (const url of parseUrls(unit.foto_url)) {
-      if (out.length >= MAKS_FOTO) return out;
+      if (out.length >= MAKS_FOTO) break;
       out.push({
         type: "image",
-        content: out.length === 0 ? specToCaption(unit) : "",
+        content: "",
         media_url: url,
         sort_order: mulaiDari + out.length,
       });
+      unitTerakhir = unit;
     }
+    if (out.length >= MAKS_FOTO) break;
+  }
+  // Caption spec ditempel di foto TERAKHIR, bukan yang pertama. Di WhatsApp
+  // caption muncul di bawah gambar; kalau ditaruh di foto pertama, spec-nya
+  // langsung ketutup tiga foto berikutnya dan customer harus scroll balik.
+  if (out.length && unitTerakhir) {
+    out[out.length - 1].content = specToCaption(unitTerakhir);
   }
   return out;
 }
