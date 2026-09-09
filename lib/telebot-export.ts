@@ -198,7 +198,7 @@ function videoBubbles(
 function fotoBubbles(
   units: ProjectRow[],
   mulaiDari: number,
-  opsi: { maks?: number; hanyaFasad?: boolean } = {}
+  opsi: { maks?: number; hanyaFasad?: boolean; tanpaCaption?: boolean } = {}
 ): TelebotBubble[] {
   const maks = opsi.maks ?? MAKS_FOTO;
   const out: TelebotBubble[] = [];
@@ -218,6 +218,11 @@ function fotoBubbles(
     if (out.length >= maks) break;
   }
   if (!out.length) return out;
+
+  // Entri harga sudah menyebut harga dan daftar tipenya di gelembung teks.
+  // Kalau fotonya juga membawa caption spec, isinya terbaca dua kali dalam
+  // satu balasan -- persis keluhan "jawaban redundant" yang dulu.
+  if (opsi.tanpaCaption) return out;
 
   if (opsi.hanyaFasad) {
     // Tiap foto di sini milik unit yang berbeda, jadi masing-masing bawa
@@ -299,14 +304,29 @@ export function buildTelebotEntries(
     // cuma dengan menempel link iklan. Yang dia harapkan foto + spec, bukan
     // ceramah lokasi.
     const cluster = row.nama_cluster.trim();
-    const kategoriFoto = /foto|gambar|pembuka/i.test(row.kategori);
+    const kategoriFoto = /foto|gambar|pembuka|harga/i.test(row.kategori);
     const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
 
     // Di pembukaan customer belum minta apa-apa: cukup tampak depan + spec
     // dan daya tariknya. Foto kamar, dapur, kamar mandi baru dikirim kalau
     // dia memang meminta foto -- itu entri Foto Properti, bukan yang ini.
-    const opsiFoto: { maks?: number; hanyaFasad?: boolean } =
-      /pembuka/i.test(row.kategori) ? { maks: 1, hanyaFasad: true } : {};
+    //
+    // Entri HARGA ikut dapat satu tampak depan, dengan alasan berbeda:
+    // dulu entri harga menutup dengan "mau Ivy kirimin fotonya?", dan
+    // jawaban "boleh" tidak bisa dipetakan ke cluster mana pun -- pencarian
+    // cuma melihat kata "boleh" tanpa konteks, lalu nyasar (pernah jatuh ke
+    // entri jadwal survey). Menawarkan sesuatu yang jawabannya tidak bisa
+    // ditangani itu jebakan buatan sendiri, jadi fotonya langsung dikirim
+    // saja bersama harganya. Satu foto, tidak memberatkan.
+    const opsiFoto: {
+      maks?: number;
+      hanyaFasad?: boolean;
+      tanpaCaption?: boolean;
+    } = /pembuka/i.test(row.kategori)
+      ? { maks: 1, hanyaFasad: true }
+      : /harga/i.test(row.kategori)
+        ? { maks: 1, hanyaFasad: true, tanpaCaption: true }
+        : {};
 
     if (units) {
       bubbles.push(...fotoBubbles(units, bubbles.length, opsiFoto));
