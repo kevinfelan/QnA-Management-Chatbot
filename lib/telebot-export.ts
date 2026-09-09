@@ -186,30 +186,48 @@ function videoBubbles(
 }
 
 // Foto cluster dengan caption hanya di foto pertama, dibatasi MAKS_FOTO.
+//
+// `hanyaFasad` mengambil foto PERTAMA tiap unit saja. Urutan foto_url di
+// sheet Projects selalu diawali fasad, jadi opsi ini = "kirim tampak
+// depannya saja". Dipakai di dua tempat:
+//   - entri pembuka, waktu customer belum minta apa-apa selain info project
+//   - entri daftar per daerah, supaya tiap cluster kebagian satu foto
+//     ketimbang satu cluster menghabiskan jatah dengan foto kamar mandinya
+// Kalau customer memang MINTA foto ("boleh minta fotonya?"), entri Foto
+// Properti tetap mengirim interior lengkap -- di situ dia sudah minta.
 function fotoBubbles(
   units: ProjectRow[],
-  mulaiDari: number
+  mulaiDari: number,
+  opsi: { maks?: number; hanyaFasad?: boolean } = {}
 ): TelebotBubble[] {
+  const maks = opsi.maks ?? MAKS_FOTO;
   const out: TelebotBubble[] = [];
-  let unitTerakhir: ProjectRow | null = null;
+  const unitDari: ProjectRow[] = [];
   for (const unit of units) {
-    for (const url of parseUrls(unit.foto_url)) {
-      if (out.length >= MAKS_FOTO) break;
+    const urls = parseUrls(unit.foto_url);
+    for (const url of opsi.hanyaFasad ? urls.slice(0, 1) : urls) {
+      if (out.length >= maks) break;
       out.push({
         type: "image",
         content: "",
         media_url: url,
         sort_order: mulaiDari + out.length,
       });
-      unitTerakhir = unit;
+      unitDari.push(unit);
     }
-    if (out.length >= MAKS_FOTO) break;
+    if (out.length >= maks) break;
   }
-  // Caption spec ditempel di foto TERAKHIR, bukan yang pertama. Di WhatsApp
-  // caption muncul di bawah gambar; kalau ditaruh di foto pertama, spec-nya
-  // langsung ketutup tiga foto berikutnya dan customer harus scroll balik.
-  if (out.length && unitTerakhir) {
-    out[out.length - 1].content = specToCaption(unitTerakhir);
+  if (!out.length) return out;
+
+  if (opsi.hanyaFasad) {
+    // Tiap foto di sini milik unit yang berbeda, jadi masing-masing bawa
+    // caption spec-nya sendiri -- bukan cuma yang terakhir.
+    out.forEach((b, i) => (b.content = specToCaption(unitDari[i])));
+  } else {
+    // Caption spec ditempel di foto TERAKHIR, bukan yang pertama. Di WhatsApp
+    // caption muncul di bawah gambar; kalau ditaruh di foto pertama, spec-nya
+    // langsung ketutup tiga foto berikutnya dan customer harus scroll balik.
+    out[out.length - 1].content = specToCaption(unitDari[unitDari.length - 1]);
   }
   return out;
 }
@@ -283,10 +301,17 @@ export function buildTelebotEntries(
     const cluster = row.nama_cluster.trim();
     const kategoriFoto = /foto|gambar|pembuka/i.test(row.kategori);
     const units = cluster && kategoriFoto ? byCluster.get(cluster) : undefined;
+
+    // Di pembukaan customer belum minta apa-apa: cukup tampak depan + spec
+    // dan daya tariknya. Foto kamar, dapur, kamar mandi baru dikirim kalau
+    // dia memang meminta foto -- itu entri Foto Properti, bukan yang ini.
+    const opsiFoto: { maks?: number; hanyaFasad?: boolean } =
+      /pembuka/i.test(row.kategori) ? { maks: 1, hanyaFasad: true } : {};
+
     if (units) {
-      bubbles.push(...fotoBubbles(units, bubbles.length));
-      // video hanya di entri FOTO, bukan di entri Pembuka -- pembuka sudah
-      // berisi sapaan + 4 foto + spec, menambah video di situ kelewat berat
+      bubbles.push(...fotoBubbles(units, bubbles.length, opsiFoto));
+      // video hanya di entri FOTO, bukan di entri Pembuka -- pembuka sengaja
+      // dijaga ringan, menambah video di situ kelewat berat
       if (/foto|gambar/i.test(row.kategori)) {
         bubbles.push(...videoBubbles(units, bubbles.length));
       }
@@ -310,7 +335,7 @@ export function buildTelebotEntries(
       // menempelkannya ke foto terakhir -- karena satu pesan tidak bisa
       // menyalip dirinya sendiri.
       const [sesudah, keCaption] = (sesudahMentah || "").split(/\n*\[CAPTION\]\n*/);
-      const foto = fotoBubbles(units, 1);
+      const foto = fotoBubbles(units, 1, opsiFoto);
       if (keCaption && keCaption.trim() && foto.length) {
         const t = foto[foto.length - 1];
         t.content = t.content ? `${t.content}\n\n${keCaption.trim()}` : keCaption.trim();
@@ -445,7 +470,11 @@ export function buildTelebotEntries(
     });
 
     const adaFotoDaerah = units.some((u) => parseUrls(u.foto_url).length > 0);
-    if (adaFotoDaerah) bubbles.push(...fotoBubbles(units, bubbles.length));
+    // Daftar per daerah: satu tampak depan per cluster. Tanpa ini satu
+    // cluster menghabiskan jatah 4 foto dengan interiornya sendiri, dan
+    // cluster lain di daerah yang sama tidak kebagian foto sama sekali.
+    if (adaFotoDaerah)
+      bubbles.push(...fotoBubbles(units, bubbles.length, { hanyaFasad: true }));
     else for (const unit of units) {
       bubbles.push({
         type: "text",
