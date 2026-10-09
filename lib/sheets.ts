@@ -446,7 +446,10 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
-    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:I${sheetRow}`,
+    // A–J: projectToRowValues mengirim 10 kolom (sampai pk_id). Dulu A–I —
+    // Sheets API menolak data yang lebih lebar dari rentangnya, jadi Edit
+    // Project gagal disimpan (ditemukan saat modul dipindah ke Moniprop).
+    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:J${sheetRow}`,
     valueInputOption: RAW_INPUT,
     requestBody: {
       values: [projectToRowValues(id, data, updated_at)],
