@@ -6,12 +6,10 @@ import { useRef, useState } from "react";
 const PULL_THRESHOLD = 64;
 const PULL_MAX = 100;
 
-// halaman yang pull-to-refresh-nya dimatiin total -- Test Chat punya
-// riwayat percakapan yang cuma hidup di memori (React state), jadi reload
-// tak sengaja gara-gara gesture ini bakal ngilangin semua chat customer
-// lagi ngetes. Tujuan fitur ini (manual refresh pas PWA belum ke-update
-// otomatis) tetep kepenuhi lewat modul lain.
-const DISABLED_PREFIXES = ["/dashboard/test-chat"];
+// Halaman yang pull-to-refresh-nya dimatikan. Kosong sejak Test Chat
+// dibongkar; mekanismenya dibiarkan karena nanti dipakai lagi kalau ada
+// layar yang punya state hidup di memori.
+const DISABLED_PREFIXES: string[] = [];
 
 // bungkus <main> dashboard biar bisa "tarik ke bawah buat refresh" kayak
 // app native -- reload seluruh halaman (bukan cuma refetch data) supaya

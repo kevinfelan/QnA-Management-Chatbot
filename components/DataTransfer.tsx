@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
-import { IconArrowRight, IconLayers, IconMessage } from "./icons";
+import { IconArrowRight, IconLayers } from "./icons";
 
 type PreviewRow = {
   baris: number;
@@ -34,7 +34,7 @@ export default function DataTransfer() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [exporting, setExporting] = useState<"app" | "telebot" | null>(null);
+  const [exporting, setExporting] = useState<"app" | null>(null);
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function DataTransfer() {
   async function handleExport(
     endpoint: string,
     fallbackName: string,
-    which: "app" | "telebot"
+    which: "app"
   ) {
     setExporting(which);
     setError(null);
@@ -182,35 +182,6 @@ export default function DataTransfer() {
           <IconArrowRight className="h-4 w-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-1 group-hover:text-teal" />
         </button>
       </div>
-
-      {/* Export khusus buat Knowledge Base chatbot kantor (Cari Properti
-          Telebot) -- formatnya beda dari export biasa: satu sheet
-          "Knowledge Base" dengan kolom ID/Category/Question/Keywords/
-          Items_JSON, dan foto properti ikut jadi gelembung jawaban. */}
-      <button
-        onClick={() =>
-          handleExport(
-            "/api/export/telebot",
-            "telebot-knowledge-base.xlsx",
-            "telebot"
-          )
-        }
-        disabled={exporting !== null}
-        className="group mt-3 flex w-full items-center gap-3 rounded-xl border border-gold/40 bg-gold/5 p-3 text-left transition-colors hover:border-gold hover:bg-gold/10 disabled:opacity-60"
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold text-navy">
-          <IconMessage className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-heading text-sm font-semibold text-navy">
-            {exporting === "telebot" ? "Menyiapkan..." : "Export untuk Telebot"}
-          </p>
-          <p className="truncate text-xs text-ink/60">
-            Siap unggah ke Knowledge Base chatbot kantor, foto ikut terkirim
-          </p>
-        </div>
-        <IconArrowRight className="h-4 w-4 shrink-0 text-ink/30 transition-transform group-hover:translate-x-1 group-hover:text-gold" />
-      </button>
 
       <input
         ref={fileRef}
