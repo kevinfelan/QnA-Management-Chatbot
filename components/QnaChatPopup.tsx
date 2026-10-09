@@ -24,7 +24,11 @@ type QnaChatPopupProps = {
 // dari sheet Projects. Gelembung dari slot PK membawa URL-nya sendiri,
 // jadi tipenya diperluas -- bukan diganti, karena keduanya hidup
 // berdampingan selama entri KB lama masih dipakai.
-type GelembungTampil = Gelembung & { fotoUrl?: string[] };
+type GelembungTampil = Gelembung & {
+  fotoUrl?: string[];
+  keterangan?: string[];
+  judul?: string;
+};
 
 type Dibuka = {
   kunci: string;
@@ -243,6 +247,8 @@ export default function QnaChatPopup({
           teks: b.teks,
           foto: Boolean(b.foto && b.foto.length),
           fotoUrl: b.foto,
+          keterangan: b.keterangan,
+          judul: b.judul,
         })),
       },
     ]);
@@ -480,22 +486,42 @@ export default function QnaChatPopup({
 
                   {d.gelembung.map((g, i) =>
                     g.foto ? (
-                      <div key={i} className="flex flex-wrap justify-end gap-2">
-                        {(g.fotoUrl ?? fotoProject).length === 0 ? (
-                          <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
-                            Belum ada foto di database project.
-                          </p>
-                        ) : (
-                          (g.fotoUrl ?? fotoProject).map((url) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={url}
-                              src={url}
-                              alt={cluster}
-                              className="h-24 w-24 rounded-lg object-cover"
-                            />
-                          ))
+                      <div key={i} className="flex flex-col items-end gap-1.5">
+                        {g.judul && (
+                          <p className="text-xs font-semibold text-navy/70">{g.judul}</p>
                         )}
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {(g.fotoUrl ?? fotoProject).length === 0 ? (
+                            <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
+                              Belum ada foto di database project.
+                            </p>
+                          ) : (
+                            (g.fotoUrl ?? fotoProject).map((url, j) => (
+                              // Dibuka ukuran penuh di tab baru supaya telesales
+                              // bisa menyimpan lalu mengirimnya ke customer.
+                              <a
+                                key={url}
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Buka ukuran penuh"
+                                className="w-24"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt={g.keterangan?.[j] || cluster}
+                                  className="h-24 w-24 rounded-lg object-cover hover:opacity-90"
+                                />
+                                {g.keterangan?.[j] && (
+                                  <span className="mt-0.5 block truncate text-center text-[10px] text-ink/50">
+                                    {g.keterangan[j]}
+                                  </span>
+                                )}
+                              </a>
+                            ))
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div key={i} className="flex items-end justify-end gap-2">

@@ -23,6 +23,10 @@ export type SlotBubble = {
   teks: string;
   /** URL foto yang ditampilkan di posisi gelembung ini. */
   foto?: string[];
+  /** Caption PK tiap foto, sejajar dengan `foto`, tampil di bawah fotonya. */
+  keterangan?: string[];
+  /** Label kelompok di atas deretan foto. Bukan bagian yang disalin. */
+  judul?: string;
 };
 
 export type SlotKategori = "Pricelist" | "Lokasi" | "Detail Project";
@@ -141,6 +145,42 @@ function barisTipe(t: TipePk): string {
 
 function fotoBercaption(p: ProjectPk, cocok: RegExp): FotoPk[] {
   return (p.foto || []).filter((f) => cocok.test(String(f.caption || "")));
+}
+
+/**
+ * Kelompok untuk "Foto lengkap project". Caption PK hampir selalu berupa
+ * label ruang ("Fasad", "Master Bedroom", "Siteplan Cluster", "Tipe 6x12"),
+ * jadi foto bisa dipilah tanpa melihat gambarnya. Urutan uji penting:
+ * "Fasad Tipe 34" harus masuk Tampak depan, bukan Denah. Yang tidak
+ * cocok ke mana pun tetap dikirim di kelompok terakhir -- foto lengkap
+ * berarti tidak ada yang tertinggal.
+ */
+const KELOMPOK_FOTO: { judul: string; cocok: RegExp }[] = [
+  { judul: "🏠 Tampak depan", cocok: /fasad|facade|tampak depan/i },
+  {
+    judul: "🛋️ Ruang dalam",
+    cocok: /room|bedroom|living|dining|bathroom|kitchen|ruang|kamar|dapur|interior|balcon|balkon|attic|backyard/i,
+  },
+  {
+    judul: "🌳 Fasilitas kawasan",
+    cocok: /pool|kolam|clubhouse|taman|playground|fasilitas|gate|gerbang|jogging|park|cluster area/i,
+  },
+  {
+    judul: "📐 Denah, tipe & siteplan",
+    cocok: /siteplan|site plan|masterplan|floor ?plan|denah|^tipe|^type|kavling|\d+\s*x\s*\d+/i,
+  },
+];
+
+function kelompokkanFoto(foto: FotoPk[]): { judul: string; foto: FotoPk[] }[] {
+  const hasil = KELOMPOK_FOTO.map((k) => ({ judul: k.judul, foto: [] as FotoPk[] }));
+  const lainnya: FotoPk[] = [];
+  for (const f of foto) {
+    const c = String(f.caption || "");
+    const i = KELOMPOK_FOTO.findIndex((k) => k.cocok.test(c));
+    if (i === -1) lainnya.push(f);
+    else hasil[i].foto.push(f);
+  }
+  return [...hasil, { judul: "📷 Lainnya", foto: lainnya }].filter((k) => k.foto.length > 0);
 }
 
 /**
@@ -358,6 +398,29 @@ export const SLOT: Slot[] = [
   },
 
   // ----- Detail Project ----------------------------------------------------
+  {
+    id: "foto-lengkap",
+    kategori: "Detail Project",
+    pertanyaan: "Foto lengkap project",
+    bangkitkan: (p) => {
+      const semua = (p.foto || []).filter((f) => f.url);
+      if (semua.length === 0) return null;
+      const kelompok = kelompokkanFoto(semua);
+      const adaRuang = kelompok.some((k) => k.judul.includes("Ruang dalam"));
+      return [
+        { teks: `Ini foto-foto ${namaPendek(p)} kak 📸` },
+        ...kelompok.map((k) => ({
+          teks: "",
+          judul: k.judul,
+          foto: k.foto.map((f) => f.url),
+          keterangan: k.foto.map((f) => String(f.caption || "").trim()),
+        })),
+        ...(adaRuang
+          ? []
+          : [{ teks: "Foto bagian dalamnya belum ada di kami kak, nanti bisa dilihat langsung waktu survey 😊" }]),
+      ];
+    },
+  },
   {
     id: "foto-fasad",
     kategori: "Detail Project",
