@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
+import type { ProjectPk } from "@/lib/pk-moniprop";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import ProjectForm, { type ProjectFormValues } from "./ProjectForm";
 import QnaChatPopup from "./QnaChatPopup";
@@ -10,6 +11,7 @@ type ProjectLauncherProps = {
   projects: ProjectRow[];
   setProjects: React.Dispatch<React.SetStateAction<ProjectRow[]>>;
   qna: QnaRow[];
+  pk: ProjectPk[];
 };
 
 type ClusterBaris = {
@@ -68,6 +70,7 @@ export default function ProjectLauncher({
   projects,
   setProjects,
   qna,
+  pk,
 }: ProjectLauncherProps) {
   const [dibuka, setDibuka] = useState<string | null>(null);
   const [crossOpen, setCrossOpen] = useState<Set<string>>(new Set());
@@ -85,6 +88,19 @@ export default function ProjectLauncher({
     () => baris.map((b) => b.nama),
     [baris]
   );
+
+  // Project PK milik satu cluster. Kolom pk_id boleh memuat beberapa id
+  // dipisah koma -- Altara memetakan ke dua baris PK yang oleh Den Mas
+  // dianggap satu cluster.
+  function pkCluster(nama: string) {
+    const ids = new Set(
+      projects
+        .filter((p) => p.nama_cluster.trim() === nama)
+        .flatMap((p) => p.pk_id.split(",").map((s) => Number(s.trim())))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    );
+    return pk.filter((x) => ids.has(x.cluster_id));
+  }
 
   function toggleCross(kunci: string) {
     setCrossOpen((prev) => {
@@ -300,6 +316,7 @@ export default function ProjectLauncher({
           cluster={dibuka}
           qna={qna}
           projects={projects}
+          pk={pkCluster(dibuka)}
           onClose={() => setDibuka(null)}
         />
       )}

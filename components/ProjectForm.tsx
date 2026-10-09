@@ -10,6 +10,7 @@ export type ProjectFormValues = {
   foto_url: string;
   video_url: string;
   tipe: ProjectTipe;
+  pk_id: string;
 };
 
 type ProjectFormProps = {
@@ -53,6 +54,7 @@ export default function ProjectForm({
   // Project baru lahir sebagai cross-sell. Dia baru pantas naik jadi utama
   // setelah QnA-nya lengkap, dan itu keputusan Den Mas, bukan bawaan form.
   const [tipe, setTipe] = useState<ProjectTipe>(initialData?.tipe ?? "cross-sell");
+  const [pkId, setPkId] = useState(initialData?.pk_id ?? "");
   const [spec, setSpec] = useState(initialData?.spec ?? "");
   const [fotoUrls, setFotoUrls] = useState<string[]>(
     parseUrls(initialData?.foto_url ?? "")
@@ -128,6 +130,7 @@ export default function ProjectForm({
         foto_url: fotoUrls.join(", "),
         video_url: videoUrls.join(", "),
         tipe,
+        pk_id: pkId.trim(),
       });
     } finally {
       setSubmitting(false);
@@ -177,6 +180,25 @@ export default function ProjectForm({
         <p className="text-xs text-ink/50">
           Project utama tampil sendiri di daftar. Cross-sell disembunyikan di
           dalam dropdown project utama sebagai alternatif buat telesales.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="pk_id" className="text-sm font-medium text-ink">
+          ID Dashboard PK
+        </label>
+        <input
+          id="pk_id"
+          type="text"
+          value={pkId}
+          onChange={(e) => setPkId(e.target.value)}
+          placeholder="contoh: 2401"
+          className="rounded-md border border-navy/20 px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+        />
+        <p className="text-xs text-ink/50">
+          Penghubung ke Dashboard PK Moniprop — dari situ harga, tipe, akses,
+          foto, dan simulasi cicilan diambil otomatis. Boleh lebih dari satu,
+          pisahkan dengan koma. Dikosongkan kalau project belum ada di PK.
         </p>
       </div>
 

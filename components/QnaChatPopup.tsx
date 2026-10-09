@@ -2,24 +2,34 @@
 
 import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
+import type { ProjectPk } from "@/lib/pk-moniprop";
 import { gabungGelembung, pecahGelembung, type Gelembung } from "@/lib/kb-bubbles";
 import { cariQna } from "@/lib/kb-cari";
+import { slotTersedia, type Slot } from "@/lib/kb-slot";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 type QnaChatPopupProps = {
   cluster: string;
   qna: QnaRow[];
   projects: ProjectRow[];
+  /** Project Dashboard PK milik cluster ini; kosong kalau belum dipetakan. */
+  pk: ProjectPk[];
   onClose: () => void;
 };
 
 // Satu pertanyaan yang sudah dibuka telesales, lengkap dengan jawabannya.
 // Disimpan bertumpuk supaya layarnya terbaca seperti riwayat percakapan --
 // telesales bisa menengok lagi jawaban sebelumnya tanpa mencarinya ulang.
+// Gelembung KB lama cuma menandai "di sini ada foto" dan fotonya diambil
+// dari sheet Projects. Gelembung dari slot PK membawa URL-nya sendiri,
+// jadi tipenya diperluas -- bukan diganti, karena keduanya hidup
+// berdampingan selama entri KB lama masih dipakai.
+type GelembungTampil = Gelembung & { fotoUrl?: string[] };
+
 type Dibuka = {
   kunci: string;
   pertanyaan: string;
-  gelembung: Gelembung[];
+  gelembung: GelembungTampil[];
 };
 
 const KATEGORI_FOTO = "Foto & Detail Project";
@@ -35,6 +45,7 @@ export default function QnaChatPopup({
   cluster,
   qna,
   projects,
+  pk,
   onClose,
 }: QnaChatPopupProps) {
   const [kategoriAktif, setKategoriAktif] = useState<string | null>(null);
@@ -68,6 +79,26 @@ export default function QnaChatPopup({
     }
     return Array.from(hitung.entries()).sort((a, b) => b[1] - a[1]);
   }, [milikCluster]);
+
+  // Slot dari Dashboard PK. Satu cluster bisa memetakan ke beberapa project
+  // PK (Altara), jadi slotnya dibangkitkan per project dan diberi label
+  // namanya supaya telesales tahu angka itu milik varian yang mana.
+  const grupSlot = useMemo(
+    () =>
+      pk.map((p) => ({ project: p, grup: slotTersedia(p) })).filter((x) => x.grup.length > 0),
+    [pk]
+  );
+
+  const kategoriSlot = useMemo(() => {
+    const map = new Map<string, { slot: Slot; project: ProjectPk }[]>();
+    for (const { project, grup } of grupSlot)
+      for (const g of grup) {
+        const isi = map.get(g.kategori) || [];
+        isi.push(...g.slot.map((s) => ({ slot: s, project })));
+        map.set(g.kategori, isi);
+      }
+    return map;
+  }, [grupSlot]);
 
   // Pencarian menjangkau SELURUH QnA cluster ini, tidak dibatasi kategori
   // yang sedang dibuka -- telesales yang mengetik sedang buru-buru dan
@@ -104,6 +135,25 @@ export default function QnaChatPopup({
         kunci: `${row.id}-${prev.length}`,
         pertanyaan: row.pertanyaan_sample.trim() || row.kata_kunci,
         gelembung: pecahGelembung(row.jawaban),
+      },
+    ]);
+  }
+
+  function bukaSlot(slot: Slot, project: ProjectPk) {
+    const hasil = slot.bangkitkan(project);
+    if (!hasil) return;
+    setDibuka((prev) => [
+      ...prev,
+      {
+        kunci: `${slot.id}-${project.cluster_id}-${prev.length}`,
+        // Nama project PK ikut ditulis hanya kalau satu cluster memetakan ke
+        // lebih dari satu -- supaya jelas angka ini milik varian yang mana.
+        pertanyaan: pk.length > 1 ? `${slot.pertanyaan} — ${project.nama}` : slot.pertanyaan,
+        gelembung: hasil.map((b) => ({
+          teks: b.teks,
+          foto: Boolean(b.foto && b.foto.length),
+          fotoUrl: b.foto,
+        })),
       },
     ]);
   }
@@ -190,12 +240,12 @@ export default function QnaChatPopup({
                 {d.gelembung.map((g, i) =>
                   g.foto ? (
                     <div key={i} className="flex flex-wrap justify-end gap-2">
-                      {fotoProject.length === 0 ? (
+                      {(g.fotoUrl ?? fotoProject).length === 0 ? (
                         <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
                           Belum ada foto di database project.
                         </p>
                       ) : (
-                        fotoProject.map((url) => (
+                        (g.fotoUrl ?? fotoProject).map((url) => (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             key={url}
@@ -314,6 +364,21 @@ export default function QnaChatPopup({
                 Kategori pertanyaan
               </p>
               <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+                {/* Kategori dari Dashboard PK didahulukan: isinya data terbaru
+                    dan berlaku untuk semua project, sedangkan kategori di
+                    bawahnya berasal dari entri KB yang ditulis tangan. */}
+                {[...kategoriSlot.keys()].map((nama) => (
+                  <button
+                    key={"slot-" + nama}
+                    onClick={() => setKategoriAktif("slot:" + nama)}
+                    className="rounded-full border border-teal/50 bg-teal/10 px-3 py-1.5 text-sm font-medium text-navy hover:bg-teal/20"
+                  >
+                    {nama}{" "}
+                    <span className="text-xs font-normal text-ink/40">
+                      {kategoriSlot.get(nama)!.length}
+                    </span>
+                  </button>
+                ))}
                 <button
                   onClick={bukaFotoProject}
                   className="rounded-full border border-gold/50 bg-gold/10 px-3 py-1.5 text-sm font-medium text-navy hover:bg-gold/20"
@@ -353,9 +418,26 @@ export default function QnaChatPopup({
                 >
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
-                {kategoriAktif}
+                {kategoriAktif.replace(/^slot:/, "")}
               </button>
               <div className="grid max-h-44 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+                {kategoriAktif.startsWith("slot:") &&
+                  (kategoriSlot.get(kategoriAktif.slice(5)) || []).map(
+                    ({ slot, project }) => (
+                      <button
+                        key={slot.id + "-" + project.cluster_id}
+                        onClick={() => bukaSlot(slot, project)}
+                        className="rounded-lg border border-teal/30 bg-teal/5 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/10"
+                      >
+                        {slot.pertanyaan}
+                        {pk.length > 1 && (
+                          <span className="mt-0.5 block text-[11px] text-ink/40">
+                            {project.nama}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  )}
                 {pertanyaan.map((row) => (
                   <button
                     key={row.id}
@@ -365,7 +447,7 @@ export default function QnaChatPopup({
                     {row.pertanyaan_sample.trim() || row.kata_kunci}
                   </button>
                 ))}
-                {pertanyaan.length === 0 && (
+                {pertanyaan.length === 0 && !kategoriAktif.startsWith("slot:") && (
                   <p className="text-sm text-ink/40">
                     Belum ada pertanyaan di kategori ini.
                   </p>

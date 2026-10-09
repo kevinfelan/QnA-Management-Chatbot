@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
+import type { ProjectPk } from "@/lib/pk-moniprop";
 import ProjectLauncher from "./ProjectLauncher";
 import QnaTable from "./QnaTable";
 
 type KnowledgeBaseModuleProps = {
   initialQna: QnaRow[];
   initialProjects: ProjectRow[];
+  pk: ProjectPk[];
 };
 
 type Tab = "project" | "database";
@@ -22,6 +24,7 @@ type Tab = "project" | "database";
 export default function KnowledgeBaseModule({
   initialQna,
   initialProjects,
+  pk,
 }: KnowledgeBaseModuleProps) {
   const [tab, setTab] = useState<Tab>("project");
   const [qna, setQna] = useState<QnaRow[]>(initialQna);
@@ -57,7 +60,12 @@ export default function KnowledgeBaseModule({
       </div>
 
       {tab === "project" ? (
-        <ProjectLauncher projects={projects} setProjects={setProjects} qna={qna} />
+        <ProjectLauncher
+          projects={projects}
+          setProjects={setProjects}
+          qna={qna}
+          pk={pk}
+        />
       ) : (
         <QnaTable rows={qna} setRows={setQna} utamaClusters={utamaClusters} />
       )}

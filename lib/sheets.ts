@@ -45,6 +45,8 @@ export type ProjectRow = {
   updated_by: string;
   updated_at: string;
   tipe: ProjectTipe;
+  /** cluster_id Dashboard PK Moniprop, boleh lebih dari satu dipisah koma. */
+  pk_id: string;
 };
 
 export type ProjectInput = {
@@ -55,6 +57,7 @@ export type ProjectInput = {
   video_url: string;
   updated_by: string;
   tipe: ProjectTipe;
+  pk_id: string;
 };
 
 const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
@@ -64,7 +67,7 @@ const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:I`;
 
 const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
 // Kolom I (tipe) ditambahkan saat app beralih jadi pustaka telesales.
-const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:I`;
+const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:J`;
 
 // Semua tulisan ke Sheets pakai RAW, JANGAN USER_ENTERED. Dengan
 // USER_ENTERED, Sheets memparse isi sel seolah diketik manusia -- sudah
@@ -335,8 +338,18 @@ export async function deleteQna(id: string): Promise<void> {
 // ---------- Projects ----------
 
 function rowToProject(row: string[]): ProjectRow | null {
-  const [id, nama_cluster, daerah, spec, foto_url, video_url, updated_by, updated_at, tipe] =
-    row;
+  const [
+    id,
+    nama_cluster,
+    daerah,
+    spec,
+    foto_url,
+    video_url,
+    updated_by,
+    updated_at,
+    tipe,
+    pk_id,
+  ] = row;
 
   if (!id) {
     return null;
@@ -352,6 +365,7 @@ function rowToProject(row: string[]): ProjectRow | null {
     updated_by: updated_by || "",
     updated_at: updated_at || "",
     tipe: toProjectTipe(tipe),
+    pk_id: (pk_id || "").trim(),
   };
 }
 
@@ -380,6 +394,7 @@ function projectToRowValues(id: string, data: ProjectInput, updatedAt: string): 
     data.updated_by,
     updatedAt,
     data.tipe,
+    data.pk_id,
   ];
 }
 
@@ -408,6 +423,7 @@ export async function addProject(data: ProjectInput): Promise<ProjectRow> {
     updated_by: data.updated_by,
     updated_at,
     tipe: data.tipe,
+    pk_id: data.pk_id,
   };
 }
 
@@ -447,6 +463,7 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
     updated_by: data.updated_by,
     updated_at,
     tipe: data.tipe,
+    pk_id: data.pk_id,
   };
 }
 

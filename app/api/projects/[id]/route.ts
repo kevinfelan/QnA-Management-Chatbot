@@ -39,6 +39,7 @@ export async function PUT(
     spec: body.spec || "",
     foto_url: body.foto_url || "",
     video_url: body.video_url || "",
+    pk_id: String(body.pk_id || "").trim(),
     tipe: toProjectTipe(body.tipe),
     updated_by: session.user.email || "",
   };
