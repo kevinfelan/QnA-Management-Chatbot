@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
-import type { ProjectPk } from "@/lib/pk-moniprop";
+import type { FotoPk, ProjectPk } from "@/lib/pk-moniprop";
 import { gabungGelembung, pecahGelembung, type Gelembung } from "@/lib/kb-bubbles";
 import { cariQna } from "@/lib/kb-cari";
 import { slotTersedia, type KonteksSlot, type Slot } from "@/lib/kb-slot";
@@ -49,11 +49,31 @@ function parseUrls(value: string): string[] {
     .filter(Boolean);
 }
 
+// Kata yang membentuk label ruang di nama berkas foto unggahan app ini,
+// mis. "cluster-visala--bedroom-visala-2-r4885v.jpg". Sisanya nama project
+// (kadang salah ketik, "neuone") dan kode acak, jadi dibuang.
+const KATA_RUANG =
+  /^(fasad|facade|living|dining|table|room|kitchen|bathroom|bedroom|master|work|backyard|balcony|carport|garden|taman|kamar|ruang|tamu|makan|tidur|mandi|dapur)$/;
+
+function captionDariBerkas(url: string): string {
+  const berkas = decodeURIComponent(url.split("/").pop() || "").replace(/\.[a-z0-9]+$/i, "");
+  const kata = (berkas.split("--").pop() || "").split("-").slice(0, -1);
+  const label: string[] = [];
+  for (const k of kata) {
+    if (!KATA_RUANG.test(k)) break;
+    label.push(k);
+  }
+  if (label.length === 0) return "Foto";
+  const nomor = kata.find((k) => /^\d$/.test(k));
+  const teks = label.map((k) => k[0].toUpperCase() + k.slice(1)).join(" ");
+  return nomor ? teks + " " + nomor : teks;
+}
+
 export default function QnaChatPopup({
   cluster,
   qna,
   projects,
-  pk,
+  pk: pkAsli,
   onClose,
 }: QnaChatPopupProps) {
   // Kategori yang sedang dibuka di panel kiri. Lebih dari satu boleh terbuka
@@ -75,6 +95,22 @@ export default function QnaChatPopup({
     () => unit.flatMap((u) => parseUrls(u.foto_url)),
     [unit]
   );
+
+  // Foto yang diunggah lewat app ini (kolom foto_url sheet Projects) ikut
+  // digabung ke foto PK. Isinya justru yang sering tidak ada di PK: ruang
+  // tamu, kamar, dapur. Dengan begini semua slot foto -- fasad, ruang
+  // dalam, foto lengkap -- memakai keduanya tanpa perlu diubah.
+  const pk = useMemo(() => {
+    const tambahan: FotoPk[] = fotoProject.map((url) => ({
+      url,
+      thumb: url,
+      caption: captionDariBerkas(url),
+    }));
+    return pkAsli.map((p) => {
+      const ada = new Set((p.foto || []).map((f) => f.url));
+      return { ...p, foto: [...(p.foto || []), ...tambahan.filter((f) => !ada.has(f.url))] };
+    });
+  }, [pkAsli, fotoProject]);
 
   const milikCluster = useMemo(
     () => qna.filter((r) => r.nama_cluster.trim() === cluster && r.aktif),

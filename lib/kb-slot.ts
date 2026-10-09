@@ -398,6 +398,23 @@ export const SLOT: Slot[] = [
   },
 
   // ----- Detail Project ----------------------------------------------------
+  // Kartu project paling atas: template jawaban pertama saat customer
+  // menanyakan detail project (Den Mas, 9 Okt 2026).
+  {
+    id: "foto-detail",
+    kategori: "Detail Project",
+    pertanyaan: "Foto + detail project",
+    bangkitkan: (p, k) => {
+      const teks = kartuProject(p, k);
+      if (!teks) return null;
+      const fasad = fotoBercaption(p, /fasad|facade|tampak depan/i);
+      const foto = (fasad.length ? fasad : p.foto || []).slice(0, 1);
+      return [
+        ...(foto.length ? [{ teks: "", foto: foto.map((f) => f.url) }] : []),
+        { teks },
+      ];
+    },
+  },
   {
     id: "foto-lengkap",
     kategori: "Detail Project",
@@ -461,21 +478,6 @@ export const SLOT: Slot[] = [
       return [
         { teks: "Ini denah dan siteplannya kak 📐" },
         { teks: "", foto: foto.map((f) => f.url) },
-      ];
-    },
-  },
-  {
-    id: "foto-detail",
-    kategori: "Detail Project",
-    pertanyaan: "Foto + detail project",
-    bangkitkan: (p, k) => {
-      const teks = kartuProject(p, k);
-      if (!teks) return null;
-      const fasad = fotoBercaption(p, /fasad|facade|tampak depan/i);
-      const foto = (fasad.length ? fasad : p.foto || []).slice(0, 1);
-      return [
-        ...(foto.length ? [{ teks: "", foto: foto.map((f) => f.url) }] : []),
-        { teks },
       ];
     },
   },
