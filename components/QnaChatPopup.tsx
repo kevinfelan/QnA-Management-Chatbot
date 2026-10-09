@@ -34,6 +34,10 @@ type Dibuka = {
 
 const KATEGORI_FOTO = "Foto & Detail Project";
 
+// Tiga kategori utama hasil perombakan. Entri KB lama yang kategorinya
+// sama digabung ke dropdown yang sama dengan slot PK.
+const KATEGORI_PK: string[] = ["Pricelist", "Lokasi", "Detail Project"];
+
 function parseUrls(value: string): string[] {
   return value
     .split(",")
@@ -131,6 +135,19 @@ export default function QnaChatPopup({
     }
     return map;
   }, [milikCluster]);
+
+  // Urutan kategori di panel kiri: tiga kategori utama dulu dengan urutan
+  // tetap (Pricelist, Lokasi, Detail Project), lalu kategori KB lainnya
+  // dari yang paling banyak isinya. Kategori utama muncul selama ada isinya,
+  // dari slot PK maupun dari entri KB yang digabung ke sana -- cluster yang
+  // belum ada di PK tetap mendapat Pricelist kalau punya entri cicilan.
+  const daftarKategori = useMemo(() => {
+    const utama = KATEGORI_PK.filter(
+      (k) => kategoriSlot.has(k) || pertanyaanPerKategori.has(k)
+    );
+    const lain = kategori.map(([nama]) => nama).filter((n) => !KATEGORI_PK.includes(n));
+    return [...utama, ...lain];
+  }, [kategoriSlot, pertanyaanPerKategori, kategori]);
 
   function toggleKategori(kunci: string) {
     setTerbuka((prev) => {
@@ -373,58 +390,65 @@ export default function QnaChatPopup({
                     Kategori pertanyaan
                   </p>
 
-                  {/* Kategori dari Dashboard PK didahulukan: isinya data
-                      terbaru, sedangkan kategori di bawahnya berasal dari
-                      entri KB yang ditulis tangan. */}
-                  {[...kategoriSlot.entries()].map(([nama, isi]) =>
-                    itemKategori(
-                      "slot:" + nama,
+                  {/* Satu nama = satu dropdown. Pricelist, Lokasi, dan Detail
+                      Project menampung slot PK sekaligus entri KB lama yang
+                      digabung ke sana (keputusan Den Mas, 9 Okt 2026) --
+                      slot PK di atas, entri KB di bawahnya. */}
+                  {daftarKategori.map((nama) => {
+                    const slotIsi = kategoriSlot.get(nama) || [];
+                    const kbIsi = pertanyaanPerKategori.get(nama) || [];
+                    return itemKategori(
                       nama,
-                      isi.length,
-                      "pk",
-                      isi.map(({ slot, project }) => (
-                        <button
-                          key={slot.id + "-" + project.cluster_id}
-                          onClick={() => bukaSlot(slot, project)}
-                          className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-teal/10"
-                        >
-                          {slot.pertanyaan}
-                          {pk.length > 1 && (
-                            <span className="block text-[11px] text-ink/40">
-                              {project.nama}
-                            </span>
-                          )}
-                        </button>
-                      ))
-                    )
+                      nama,
+                      slotIsi.length + kbIsi.length,
+                      KATEGORI_PK.includes(nama) ? "pk" : "kb",
+                      <>
+                        {slotIsi.map(({ slot, project }) => (
+                          <button
+                            key={slot.id + "-" + project.cluster_id}
+                            onClick={() => bukaSlot(slot, project)}
+                            className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-teal/10"
+                          >
+                            {slot.pertanyaan}
+                            {pk.length > 1 && (
+                              <span className="block text-[11px] text-ink/40">
+                                {project.nama}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                        {slotIsi.length > 0 && kbIsi.length > 0 && (
+                          <div className="mx-2 my-1 border-t border-navy/10" />
+                        )}
+                        {kbIsi.map((row) => (
+                          <button
+                            key={row.id}
+                            onClick={() => buka(row)}
+                            className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-navy/5"
+                          >
+                            {row.pertanyaan_sample.trim() || row.kata_kunci}
+                          </button>
+                        ))}
+                      </>
+                    );
+                  })}
+
+                  {/* Spec & foto dari sheet Projects. Untuk cluster yang
+                      sudah terhubung PK, isinya sudah tercakup slot "Foto +
+                      detail project", jadi tombol ini hanya muncul untuk
+                      cluster yang belum ada di PK (Dharmawangsa, New
+                      Senopati) -- tanpanya mereka tidak punya jalan ke foto
+                      dan harga sama sekali. */}
+                  {pk.length === 0 && (
+                    <button
+                      onClick={bukaFotoProject}
+                      className="flex w-full items-center justify-between rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-left text-sm font-medium text-navy hover:bg-gold/20"
+                    >
+                      {KATEGORI_FOTO}
+                    </button>
                   )}
 
-                  <button
-                    onClick={bukaFotoProject}
-                    className="flex w-full items-center justify-between rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-left text-sm font-medium text-navy hover:bg-gold/20"
-                  >
-                    {KATEGORI_FOTO}
-                  </button>
-
-                  {kategori.map(([nama, jumlah]) =>
-                    itemKategori(
-                      nama,
-                      nama,
-                      jumlah,
-                      "kb",
-                      (pertanyaanPerKategori.get(nama) || []).map((row) => (
-                        <button
-                          key={row.id}
-                          onClick={() => buka(row)}
-                          className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-navy/5"
-                        >
-                          {row.pertanyaan_sample.trim() || row.kata_kunci}
-                        </button>
-                      ))
-                    )
-                  )}
-
-                  {kategori.length === 0 && kategoriSlot.size === 0 && (
+                  {daftarKategori.length === 0 && (
                     <p className="px-1 text-sm text-ink/40">
                       Belum ada QnA untuk cluster ini.
                     </p>
