@@ -1,8 +1,8 @@
-import { listProjects } from "@/lib/sheets";
-import ProjectTable from "@/components/ProjectTable";
+import { redirect } from "next/navigation";
 
-export default async function ProjectsPage() {
-  const data = await listProjects();
-
-  return <ProjectTable initialData={data} />;
+// Database Project sudah lebur jadi tab di dalam modul Knowledge Base.
+// Alamat lamanya dibiarkan hidup supaya pintasan dan PWA yang sudah
+// tersimpan di HP tidak berujung halaman kosong.
+export default function ProjectsPage() {
+  redirect("/dashboard/qna");
 }

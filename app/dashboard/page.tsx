@@ -8,7 +8,6 @@ import DashboardKpiCards from "@/components/DashboardKpiCards";
 import DataTransfer from "@/components/DataTransfer";
 import {
   IconArrowRight,
-  IconBuilding,
   IconEdit,
   IconShield,
   IconSparkle,
@@ -32,14 +31,8 @@ export default async function DashboardOverviewPage() {
     {
       href: "/dashboard/qna",
       label: "Knowledge Base",
-      desc: "Kelola pertanyaan & jawaban chatbot",
+      desc: "QnA siap salin + data cluster & properti",
       Icon: IconEdit,
-    },
-    {
-      href: "/dashboard/projects",
-      label: "Database Project",
-      desc: "Kelola data cluster & properti",
-      Icon: IconBuilding,
     },
     ...(isAdmin(session?.user)
       ? [

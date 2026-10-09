@@ -116,7 +116,7 @@ export default function GlobalSearch({ qna, projects }: GlobalSearchProps) {
                 {projectResults.map((row) => (
                   <Link
                     key={row.id}
-                    href="/dashboard/projects"
+                    href="/dashboard/qna"
                     className="rounded-lg border border-navy/10 bg-white p-3 text-sm transition-colors hover:border-teal/40 hover:bg-teal/5"
                   >
                     <div className="flex flex-wrap items-center gap-2">

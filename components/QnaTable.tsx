@@ -6,7 +6,11 @@ import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import QnaForm, { type QnaFormValues } from "./QnaForm";
 
 type QnaTableProps = {
-  initialData: QnaRow[];
+  // Dikendalikan dari modul induk, bukan state sendiri: tab Project dan tab
+  // Knowledge Base membaca daftar yang sama, jadi QnA yang baru disunting di
+  // tab ini harus langsung ikut berubah di popup telesales sebelah.
+  rows: QnaRow[];
+  setRows: React.Dispatch<React.SetStateAction<QnaRow[]>>;
   // Nama cluster yang ditandai "utama" di Database Project, huruf kecil
   // semua. QnA sendiri tidak menyimpan penanda ini -- sumbernya satu, yaitu
   // sheet Projects, supaya kedua layar tidak pernah berbeda isi dropdownnya.
@@ -52,8 +56,7 @@ async function apiCall<T>(url: string, options?: RequestInit): Promise<T> {
   return json.data;
 }
 
-export default function QnaTable({ initialData, utamaClusters }: QnaTableProps) {
-  const [rows, setRows] = useState<QnaRow[]>(initialData);
+export default function QnaTable({ rows, setRows, utamaClusters }: QnaTableProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<QnaRow | null>(null);
   const [error, setError] = useState<string | null>(null);

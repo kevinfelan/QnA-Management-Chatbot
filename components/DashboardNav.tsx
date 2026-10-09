@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconDashboard, IconEdit, IconBuilding, IconShield } from "./icons";
+import { IconDashboard, IconEdit, IconShield } from "./icons";
 
 const BASE_ITEMS = [
   { href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
   { href: "/dashboard/qna", label: "Knowledge Base", Icon: IconEdit },
-  { href: "/dashboard/projects", label: "Database Project", Icon: IconBuilding },
 ];
 
 const ADMIN_ITEM = { href: "/dashboard/admin", label: "Admin", Icon: IconShield };
