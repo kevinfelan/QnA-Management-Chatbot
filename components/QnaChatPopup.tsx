@@ -5,7 +5,7 @@ import type { ProjectRow, QnaRow } from "@/lib/sheets";
 import type { ProjectPk } from "@/lib/pk-moniprop";
 import { gabungGelembung, pecahGelembung, type Gelembung } from "@/lib/kb-bubbles";
 import { cariQna } from "@/lib/kb-cari";
-import { slotTersedia, type Slot } from "@/lib/kb-slot";
+import { slotTersedia, type KonteksSlot, type Slot } from "@/lib/kb-slot";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 type QnaChatPopupProps = {
@@ -80,13 +80,22 @@ export default function QnaChatPopup({
     return Array.from(hitung.entries()).sort((a, b) => b[1] - a[1]);
   }, [milikCluster]);
 
+  // Nama cluster dipakai sheet kita, bukan nama panjang versi PK: agent
+  // menulis "CLUSTER ARAYA LAKE" lalu kawasannya di baris berikutnya.
+  const konteks: KonteksSlot = useMemo(
+    () => ({ namaCluster: cluster, daerah: unit[0]?.daerah.trim() || "" }),
+    [cluster, unit]
+  );
+
   // Slot dari Dashboard PK. Satu cluster bisa memetakan ke beberapa project
   // PK (Altara), jadi slotnya dibangkitkan per project dan diberi label
   // namanya supaya telesales tahu angka itu milik varian yang mana.
   const grupSlot = useMemo(
     () =>
-      pk.map((p) => ({ project: p, grup: slotTersedia(p) })).filter((x) => x.grup.length > 0),
-    [pk]
+      pk
+        .map((p) => ({ project: p, grup: slotTersedia(p, konteks) }))
+        .filter((x) => x.grup.length > 0),
+    [pk, konteks]
   );
 
   const kategoriSlot = useMemo(() => {
@@ -140,7 +149,7 @@ export default function QnaChatPopup({
   }
 
   function bukaSlot(slot: Slot, project: ProjectPk) {
-    const hasil = slot.bangkitkan(project);
+    const hasil = slot.bangkitkan(project, konteks);
     if (!hasil) return;
     setDibuka((prev) => [
       ...prev,

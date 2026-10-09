@@ -27,12 +27,22 @@ export type SlotBubble = {
 
 export type SlotKategori = "Pricelist" | "Lokasi" | "Detail Project";
 
+/**
+ * Nama cluster dan kawasan versi sheet kita. PK menamai projectnya
+ * "Araya Lake Grand Residence City", sedangkan agent menulis
+ * "CLUSTER ARAYA LAKE" lalu "Grand Residence City" di baris berikutnya.
+ */
+export type KonteksSlot = {
+  namaCluster: string;
+  daerah: string;
+};
+
 export type Slot = {
   id: string;
   kategori: SlotKategori;
   pertanyaan: string;
   /** null = datanya memang belum ada di PK untuk project ini. */
-  bangkitkan: (p: ProjectPk) => SlotBubble[] | null;
+  bangkitkan: (p: ProjectPk, k: KonteksSlot) => SlotBubble[] | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -131,6 +141,67 @@ function barisTipe(t: TipePk): string {
 
 function fotoBercaption(p: ProjectPk, cocok: RegExp): FotoPk[] {
   return (p.foto || []).filter((f) => cocok.test(String(f.caption || "")));
+}
+
+/**
+ * Kartu project: foto fasad + satu teks bersekat, bentuk yang sudah dipakai
+ * agent di WhatsApp (contoh dari Den Mas, 9 Okt 2026).
+ *
+ * Satu daftar panjang tanpa sekat terlalu padat untuk dibaca customer di
+ * layar HP. Sekat beremoji membuatnya terbaca sekilas: tipe, harga, promo,
+ * lokasi -- customer bisa langsung melompat ke bagian yang dia cari.
+ *
+ * Dirakit dari field PK, BUKAN dari parsing teks spec seperti versi
+ * telebot dulu. Hasilnya lebih tepat dan tidak bergantung pada cara spec
+ * itu kebetulan diketik.
+ */
+function kartuProject(p: ProjectPk, k: KonteksSlot): string | null {
+  const tipe = p.tipe || [];
+  const promo = p.promo || [];
+  const harga = rupiahRingkas(p.harga_min);
+  if (tipe.length === 0 && !harga && promo.length === 0) return null;
+
+  const baris: string[] = [`✨ ${k.namaCluster.toUpperCase()} ✨`];
+  if (k.daerah) baris.push(k.daerah);
+
+  if (tipe.length) {
+    baris.push("", "🏡 Pilihan Tipe Rumah:");
+    for (const t of tipe) {
+      const lantai = t.lantai != null ? ` · ${t.lantai} lantai` : "";
+      baris.push(`⭐ ${t.nama || "Tipe"}${lantai}`);
+      const bagian: string[] = [];
+      if (t.lb != null) bagian.push("LB " + t.lb);
+      if (t.lt != null) bagian.push("LT " + t.lt);
+      if (t.kt != null) bagian.push(t.kt + " KT");
+      if (t.km != null) bagian.push(t.km + " KM");
+      if (bagian.length) baris.push(bagian.join(" | "));
+    }
+  }
+
+  const berharga = tipe.filter((t) => t.harga != null);
+  if (berharga.length) {
+    baris.push("", "💰 Harga:");
+    for (const t of berharga) baris.push(`• ${t.nama || "Tipe"} — ${rupiahRingkas(t.harga)}`);
+  } else if (harga) {
+    baris.push("", "💰 Harga:", `• Mulai ${harga}`);
+  }
+
+  if (promo.length) {
+    baris.push("", "🎁 Yang bikin worth it:");
+    for (const x of promo) baris.push(`✨ ${x}`);
+  }
+
+  // Satu butir lokasi saja sebagai penutup, seperti punya agent. Diambil
+  // yang paling dekat -- menit tempuh terkecil.
+  const lokasi = butirArtikel(p.artikel_lokasi)
+    .filter((b) => BERANGKA.test(b))
+    .sort((a, b) => {
+      const menit = (s: string) => Number(s.match(/(\d+)\s*menit/i)?.[1] ?? 999);
+      return menit(a) - menit(b);
+    })[0];
+  if (lokasi) baris.push("", "📍 " + lokasi);
+
+  return baris.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -331,22 +402,17 @@ export const SLOT: Slot[] = [
     },
   },
   {
-    id: "detail-unit",
+    id: "foto-detail",
     kategori: "Detail Project",
-    pertanyaan: "Detail unit (tipe, kamar, LB/LT)",
-    bangkitkan: (p) => {
-      const tipe = p.tipe || [];
-      if (tipe.length === 0) return null;
-      const kamar =
-        p.kamar_min != null && p.kamar_max != null
-          ? p.kamar_min === p.kamar_max
-            ? `${p.kamar_min} kamar tidur`
-            : `${p.kamar_min}–${p.kamar_max} kamar tidur`
-          : null;
+    pertanyaan: "Foto + detail project",
+    bangkitkan: (p, k) => {
+      const teks = kartuProject(p, k);
+      if (!teks) return null;
+      const fasad = fotoBercaption(p, /fasad|facade|tampak depan/i);
+      const foto = (fasad.length ? fasad : p.foto || []).slice(0, 1);
       return [
-        { teks: `Detail unit ${namaPendek(p)} kak 🏠` },
-        { teks: tipe.map(barisTipe).join("\n") },
-        ...(kamar ? [{ teks: `Jadi pilihannya ada di ${kamar} ya kak.` }] : []),
+        ...(foto.length ? [{ teks: "", foto: foto.map((f) => f.url) }] : []),
+        { teks },
       ];
     },
   },
@@ -393,12 +459,15 @@ export const SLOT: Slot[] = [
 ];
 
 /** Slot yang punya jawaban untuk project ini, dikelompokkan per kategori. */
-export function slotTersedia(p: ProjectPk): { kategori: SlotKategori; slot: Slot[] }[] {
+export function slotTersedia(
+  p: ProjectPk,
+  k: KonteksSlot
+): { kategori: SlotKategori; slot: Slot[] }[] {
   const urutan: SlotKategori[] = ["Pricelist", "Lokasi", "Detail Project"];
   return urutan
     .map((kategori) => ({
       kategori,
-      slot: SLOT.filter((s) => s.kategori === kategori && s.bangkitkan(p) !== null),
+      slot: SLOT.filter((s) => s.kategori === kategori && s.bangkitkan(p, k) !== null),
     }))
     .filter((g) => g.slot.length > 0);
 }
