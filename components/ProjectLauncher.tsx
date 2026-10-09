@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
 import type { ProjectPk } from "@/lib/pk-moniprop";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { gabungFotoSheet, jumlahSlot } from "@/lib/kb-foto";
 import ProjectForm, { type ProjectFormValues } from "./ProjectForm";
 import QnaChatPopup from "./QnaChatPopup";
 
@@ -102,6 +103,14 @@ export default function ProjectLauncher({
     return pk.filter((x) => ids.has(x.cluster_id));
   }
 
+  // Angka di baris = angka di kepala popup: jawaban PK + entri KB.
+  const jumlahJawaban = (b: ClusterBaris) =>
+    b.jumlahQna +
+    jumlahSlot(gabungFotoSheet(pkCluster(b.nama), b.unit), {
+      namaCluster: b.nama,
+      daerah: b.daerah,
+    });
+
   function toggleCross(kunci: string) {
     setCrossOpen((prev) => {
       const next = new Set(prev);
@@ -175,7 +184,7 @@ export default function ProjectLauncher({
             {b.nama}
           </p>
           <p className="truncate text-xs text-ink/50">
-            {b.daerah || "—"} · {b.jumlahQna} QnA
+            {b.daerah || "—"} · {jumlahJawaban(b)} jawaban
             {b.unit.length > 1 ? ` · ${b.unit.length} properti` : ""}
           </p>
         </div>
