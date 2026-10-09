@@ -165,16 +165,19 @@ export default function QnaChatPopup({
           ) : (
             dibuka.map((d) => (
               <div key={d.kunci} className="space-y-2">
-                {/* pertanyaan ditaruh di kanan seperti pesan masuk dari customer */}
-                <div className="flex justify-end">
-                  <p className="max-w-2xl rounded-2xl rounded-br-sm bg-navy/10 px-4 py-2 text-sm text-navy">
+                {/* Sisi mengikuti WhatsApp dari sudut pandang telesales:
+                    KIRI pesan masuk dari customer, KANAN yang akan dikirim
+                    telesales. Jadi telesales melihat persis bentuk
+                    percakapannya nanti sebelum menyalin. */}
+                <div className="flex justify-start">
+                  <p className="max-w-2xl rounded-2xl rounded-bl-sm bg-navy/10 px-4 py-2 text-sm text-navy">
                     {d.pertanyaan}
                   </p>
                 </div>
 
                 {d.gelembung.map((g, i) =>
                   g.foto ? (
-                    <div key={i} className="flex flex-wrap gap-2">
+                    <div key={i} className="flex flex-wrap justify-end gap-2">
                       {fotoProject.length === 0 ? (
                         <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
                           Belum ada foto di database project.
@@ -192,22 +195,22 @@ export default function QnaChatPopup({
                       )}
                     </div>
                   ) : (
-                    <div key={i} className="flex items-end gap-2">
-                      <p className="max-w-2xl whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-ink shadow-sm">
-                        {g.teks}
-                      </p>
+                    <div key={i} className="flex items-end justify-end gap-2">
                       <button
                         onClick={() => salin(g.teks, `${d.kunci}-${i}`)}
                         className="shrink-0 rounded-md border border-navy/15 bg-white px-2 py-1 text-[11px] font-medium text-navy/70 hover:bg-navy/5"
                       >
                         {tersalin === `${d.kunci}-${i}` ? "Tersalin" : "Salin"}
                       </button>
+                      <p className="max-w-2xl whitespace-pre-wrap rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-ink shadow-sm">
+                        {g.teks}
+                      </p>
                     </div>
                   )
                 )}
 
                 {d.gelembung.filter((g) => !g.foto).length > 1 && (
-                  <div className="flex justify-start">
+                  <div className="flex justify-end">
                     <button
                       onClick={() => salin(gabungGelembung(d.gelembung), d.kunci)}
                       className="rounded-md px-2 py-1 text-[11px] font-medium text-teal underline-offset-2 hover:underline"
