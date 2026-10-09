@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ProjectRow, QnaRow } from "@/lib/sheets";
 import { gabungGelembung, pecahGelembung, type Gelembung } from "@/lib/kb-bubbles";
+import { cariQna } from "@/lib/kb-cari";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 type QnaChatPopupProps = {
@@ -39,6 +40,7 @@ export default function QnaChatPopup({
   const [kategoriAktif, setKategoriAktif] = useState<string | null>(null);
   const [dibuka, setDibuka] = useState<Dibuka[]>([]);
   const [tersalin, setTersalin] = useState<string | null>(null);
+  const [cari, setCari] = useState("");
 
   useBodyScrollLock(true);
 
@@ -66,6 +68,14 @@ export default function QnaChatPopup({
     }
     return Array.from(hitung.entries()).sort((a, b) => b[1] - a[1]);
   }, [milikCluster]);
+
+  // Pencarian menjangkau SELURUH QnA cluster ini, tidak dibatasi kategori
+  // yang sedang dibuka -- telesales yang mengetik sedang buru-buru dan
+  // tidak sedang menelusuri.
+  const hasilCari = useMemo(
+    () => cariQna(milikCluster, cari),
+    [milikCluster, cari]
+  );
 
   const pertanyaan = useMemo(
     () =>
@@ -226,9 +236,77 @@ export default function QnaChatPopup({
           )}
         </div>
 
-        {/* pemilih: kategori dulu, baru daftar pertanyaan */}
+        {/* pemilih: cari dulu kalau tahu mau apa, kalau tidak telusuri
+            lewat kategori */}
         <div className="shrink-0 border-t border-navy/10 bg-white px-4 py-3">
-          {kategoriAktif === null ? (
+          <div className="relative mb-3">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+              placeholder="Cari jawaban — contoh: akses terdekat, cicilan, sertifikat"
+              className="w-full rounded-lg border border-navy/15 py-2 pl-9 pr-9 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+            />
+            {cari.length > 0 && (
+              <button
+                onClick={() => setCari("")}
+                aria-label="Hapus pencarian"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink/40 hover:bg-navy/5 hover:text-navy"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {cari.trim().length > 0 ? (
+            <>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
+                {hasilCari.length > 0
+                  ? `${hasilCari.length} jawaban cocok`
+                  : "Tidak ada yang cocok"}
+              </p>
+              <div className="grid max-h-44 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
+                {hasilCari.map(({ row }) => (
+                  <button
+                    key={row.id}
+                    onClick={() => buka(row)}
+                    className="rounded-lg border border-navy/10 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/5"
+                  >
+                    {row.pertanyaan_sample.trim() || row.kata_kunci}
+                    <span className="mt-0.5 block text-[11px] text-ink/40">
+                      {row.kategori.trim() || "Lainnya"}
+                    </span>
+                  </button>
+                ))}
+                {hasilCari.length === 0 && (
+                  <p className="text-sm text-ink/40">
+                    Coba kata lain, atau telusuri lewat kategori dengan
+                    mengosongkan kolom pencarian.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : kategoriAktif === null ? (
             <>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
                 Kategori pertanyaan
