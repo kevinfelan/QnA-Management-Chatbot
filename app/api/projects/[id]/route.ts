@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
-import { deleteProject, updateProject, type ProjectInput } from "@/lib/sheets";
+import {
+  deleteProject,
+  updateProject,
+  toProjectTipe,
+  type ProjectInput,
+} from "@/lib/sheets";
 
 export async function PUT(
   request: NextRequest,
@@ -34,6 +39,7 @@ export async function PUT(
     spec: body.spec || "",
     foto_url: body.foto_url || "",
     video_url: body.video_url || "",
+    tipe: toProjectTipe(body.tipe),
     updated_by: session.user.email || "",
   };
 

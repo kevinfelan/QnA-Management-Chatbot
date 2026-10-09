@@ -22,6 +22,19 @@ export type QnaInput = {
   nama_cluster: string;
 };
 
+// "utama" = project yang punya QnA lengkap dan berdiri sendiri di daftar.
+// "cross-sell" = cluster pendamping, muncul di dalam dropdown project utama
+// sebagai alternatif yang ditawarkan telesales kalau yang utama tidak cocok.
+export type ProjectTipe = "utama" | "cross-sell";
+
+export const PROJECT_TIPE_DEFAULT: ProjectTipe = "cross-sell";
+
+// Sel yang kosong atau salah ketik dianggap cross-sell -- menaikkan sesuatu
+// jadi utama harus keputusan sadar, bukan akibat sel yang belum diisi.
+export function toProjectTipe(value: string | undefined): ProjectTipe {
+  return value?.trim().toLowerCase() === "utama" ? "utama" : PROJECT_TIPE_DEFAULT;
+}
+
 export type ProjectRow = {
   id: string;
   nama_cluster: string;
@@ -31,6 +44,7 @@ export type ProjectRow = {
   video_url: string;
   updated_by: string;
   updated_at: string;
+  tipe: ProjectTipe;
 };
 
 export type ProjectInput = {
@@ -40,6 +54,7 @@ export type ProjectInput = {
   foto_url: string;
   video_url: string;
   updated_by: string;
+  tipe: ProjectTipe;
 };
 
 const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
@@ -48,7 +63,8 @@ const QNA_SHEET_NAME = process.env.GOOGLE_QNA_SHEET_NAME || "QnA_Setup";
 const QNA_RANGE_DATA = `${QNA_SHEET_NAME}!A2:I`;
 
 const PROJECTS_SHEET_NAME = process.env.GOOGLE_PROJECTS_SHEET_NAME || "Projects";
-const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:H`;
+// Kolom I (tipe) ditambahkan saat app beralih jadi pustaka telesales.
+const PROJECTS_RANGE_DATA = `${PROJECTS_SHEET_NAME}!A2:I`;
 
 // Semua tulisan ke Sheets pakai RAW, JANGAN USER_ENTERED. Dengan
 // USER_ENTERED, Sheets memparse isi sel seolah diketik manusia -- sudah
@@ -319,7 +335,8 @@ export async function deleteQna(id: string): Promise<void> {
 // ---------- Projects ----------
 
 function rowToProject(row: string[]): ProjectRow | null {
-  const [id, nama_cluster, daerah, spec, foto_url, video_url, updated_by, updated_at] = row;
+  const [id, nama_cluster, daerah, spec, foto_url, video_url, updated_by, updated_at, tipe] =
+    row;
 
   if (!id) {
     return null;
@@ -334,6 +351,7 @@ function rowToProject(row: string[]): ProjectRow | null {
     video_url: video_url || "",
     updated_by: updated_by || "",
     updated_at: updated_at || "",
+    tipe: toProjectTipe(tipe),
   };
 }
 
@@ -361,6 +379,7 @@ function projectToRowValues(id: string, data: ProjectInput, updatedAt: string): 
     data.video_url,
     data.updated_by,
     updatedAt,
+    data.tipe,
   ];
 }
 
@@ -388,6 +407,7 @@ export async function addProject(data: ProjectInput): Promise<ProjectRow> {
     video_url: data.video_url,
     updated_by: data.updated_by,
     updated_at,
+    tipe: data.tipe,
   };
 }
 
@@ -410,7 +430,7 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
-    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:H${sheetRow}`,
+    range: `${PROJECTS_SHEET_NAME}!A${sheetRow}:I${sheetRow}`,
     valueInputOption: RAW_INPUT,
     requestBody: {
       values: [projectToRowValues(id, data, updated_at)],
@@ -426,6 +446,7 @@ export async function updateProject(id: string, data: ProjectInput): Promise<Pro
     video_url: data.video_url,
     updated_by: data.updated_by,
     updated_at,
+    tipe: data.tipe,
   };
 }
 

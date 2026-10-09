@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase-server";
-import { addProject, listProjects, type ProjectInput } from "@/lib/sheets";
+import {
+  addProject,
+  listProjects,
+  toProjectTipe,
+  type ProjectInput,
+} from "@/lib/sheets";
 
 export async function GET() {
   const supabase = await createServerSupabase();
@@ -54,6 +59,7 @@ export async function POST(request: NextRequest) {
     spec: body.spec || "",
     foto_url: body.foto_url || "",
     video_url: body.video_url || "",
+    tipe: toProjectTipe(body.tipe),
     updated_by: session.user.email || "",
   };
 

@@ -7,12 +7,17 @@ import QnaForm, { type QnaFormValues } from "./QnaForm";
 
 type QnaTableProps = {
   initialData: QnaRow[];
+  // Nama cluster yang ditandai "utama" di Database Project, huruf kecil
+  // semua. QnA sendiri tidak menyimpan penanda ini -- sumbernya satu, yaitu
+  // sheet Projects, supaya kedua layar tidak pernah berbeda isi dropdownnya.
+  utamaClusters: string[];
 };
 
 type ClusterGroup = {
   key: string;
   label: string;
   rows: QnaRow[];
+  utama: boolean;
 };
 
 function truncate(text: string, max: number): string {
@@ -20,14 +25,14 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max).trimEnd() + "...";
 }
 
-function groupByCluster(rows: QnaRow[]): ClusterGroup[] {
+function groupByCluster(rows: QnaRow[], utama: Set<string>): ClusterGroup[] {
   const map = new Map<string, ClusterGroup>();
 
   for (const row of rows) {
     const label = row.nama_cluster.trim() || "Umum";
     const key = label.toLowerCase();
     if (!map.has(key)) {
-      map.set(key, { key, label, rows: [] });
+      map.set(key, { key, label, rows: [], utama: utama.has(key) });
     }
     map.get(key)!.rows.push(row);
   }
@@ -47,17 +52,24 @@ async function apiCall<T>(url: string, options?: RequestInit): Promise<T> {
   return json.data;
 }
 
-export default function QnaTable({ initialData }: QnaTableProps) {
+export default function QnaTable({ initialData, utamaClusters }: QnaTableProps) {
   const [rows, setRows] = useState<QnaRow[]>(initialData);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<QnaRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+  const [crossOpen, setCrossOpen] = useState<Set<string>>(new Set());
 
   useBodyScrollLock(formOpen);
 
-  const groups = useMemo(() => groupByCluster(rows), [rows]);
+  const utamaSet = useMemo(
+    () => new Set(utamaClusters.map((c) => c.trim().toLowerCase())),
+    [utamaClusters]
+  );
+  const groups = useMemo(() => groupByCluster(rows, utamaSet), [rows, utamaSet]);
+  const utamaGroups = useMemo(() => groups.filter((g) => g.utama), [groups]);
+  const crossGroups = useMemo(() => groups.filter((g) => !g.utama), [groups]);
   const clusterNames = useMemo(
     () =>
       Array.from(new Set(rows.map((r) => r.nama_cluster.trim()).filter(Boolean))).sort(
@@ -72,6 +84,18 @@ export default function QnaTable({ initialData }: QnaTableProps) {
       ),
     [rows]
   );
+
+  function toggleCross(key: string) {
+    setCrossOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   function toggleCluster(key: string) {
     setOpenClusters((prev) => {
@@ -147,63 +171,50 @@ export default function QnaTable({ initialData }: QnaTableProps) {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg font-semibold text-navy">
-          Daftar QnA ({rows.length})
-        </h2>
-        <button
-          onClick={openCreateForm}
-          className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal/90"
+  function chevron(open: boolean, size: string) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`${size} shrink-0 text-navy/60 transition-transform ${
+          open ? "rotate-180" : ""
+        }`}
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    );
+  }
+
+  // Kepala cluster, dipakai di dua tingkat: project utama di daftar atas dan
+  // cluster cross-sell di dalam dropdownnya. Yang bersarang dibuat lebih
+  // kecil supaya tingkatannya kebaca sekilas.
+  function clusterHeader(group: ClusterGroup, nested: boolean) {
+    return (
+      <button
+        onClick={() => toggleCluster(group.key)}
+        className={`flex w-full items-center justify-between text-left hover:bg-navy/5 ${
+          nested ? "px-3 py-2" : "px-4 py-3"
+        }`}
+      >
+        <span
+          className={`font-heading font-semibold text-navy ${nested ? "text-sm" : ""}`}
         >
-          + Tambah QnA
-        </button>
-      </div>
+          {group.label}{" "}
+          <span className="text-sm font-normal text-ink/50">
+            ({group.rows.length} QnA)
+          </span>
+        </span>
+        {chevron(openClusters.has(group.key), nested ? "h-4 w-4" : "h-5 w-5")}
+      </button>
+    );
+  }
 
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
-
-      {groups.length === 0 ? (
-        <div className="rounded-lg border border-navy/10 bg-white px-4 py-8 text-center text-ink/50">
-          Belum ada data QnA.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {groups.map((group) => {
-            const isOpen = openClusters.has(group.key);
-            return (
-              <div
-                key={group.key}
-                className="overflow-hidden rounded-lg border border-navy/10 bg-white"
-              >
-                <button
-                  onClick={() => toggleCluster(group.key)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-navy/5"
-                >
-                  <span className="font-heading font-semibold text-navy">
-                    {group.label}{" "}
-                    <span className="text-sm font-normal text-ink/50">
-                      ({group.rows.length} QnA)
-                    </span>
-                  </span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`h-5 w-5 shrink-0 text-navy/60 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {isOpen && (
+  function renderBody(group: ClusterGroup) {
+    return (
                   <>
                     {/* Mobile: card list stack ke bawah, gak perlu geser samping */}
                     <div className="divide-y divide-navy/5 border-t border-navy/10 md:hidden">
@@ -311,10 +322,100 @@ export default function QnaTable({ initialData }: QnaTableProps) {
                       </table>
                     </div>
                   </>
-                )}
-              </div>
-            );
-          })}
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-lg font-semibold text-navy">
+          Daftar QnA ({rows.length})
+        </h2>
+        <button
+          onClick={openCreateForm}
+          className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal/90"
+        >
+          + Tambah QnA
+        </button>
+      </div>
+
+      {error && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      {groups.length === 0 ? (
+        <div className="rounded-lg border border-navy/10 bg-white px-4 py-8 text-center text-ink/50">
+          Belum ada data QnA.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {utamaGroups.map((group) => (
+            <div
+              key={group.key}
+              className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+            >
+              {clusterHeader(group, false)}
+
+              {openClusters.has(group.key) && (
+                <>
+                  {renderBody(group)}
+
+                  {crossGroups.length > 0 && (
+                    <div className="border-t border-navy/10 bg-navy/[0.03] px-4 py-3">
+                      <button
+                        onClick={() => toggleCross(group.key)}
+                        className="flex w-full items-center justify-between text-left"
+                      >
+                        <span className="font-heading text-sm font-semibold text-navy/80">
+                          Project cross-sell{" "}
+                          <span className="font-normal text-ink/50">
+                            ({crossGroups.length})
+                          </span>
+                        </span>
+                        {chevron(crossOpen.has(group.key), "h-4 w-4")}
+                      </button>
+
+                      {crossOpen.has(group.key) && (
+                        <div className="mt-3 flex flex-col gap-2">
+                          {crossGroups.map((cross) => (
+                            <div
+                              key={cross.key}
+                              className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+                            >
+                              {clusterHeader(cross, true)}
+                              {openClusters.has(cross.key) && renderBody(cross)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Tanpa satu pun project utama, seluruh cross-sell lenyap dari
+              layar. Daripada QnA-nya tidak bisa dijangkau, semuanya tetap
+              ditampilkan datar disertai cara menaikkan salah satunya. */}
+          {utamaGroups.length === 0 && (
+            <>
+              <p className="rounded-lg border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-ink/70">
+                Belum ada project yang ditandai utama. Tandai lewat Database
+                Project &rarr; Edit &rarr; Tipe Project, supaya cluster lain
+                masuk ke dropdown cross-sell miliknya.
+              </p>
+              {crossGroups.map((cross) => (
+                <div
+                  key={cross.key}
+                  className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+                >
+                  {clusterHeader(cross, false)}
+                  {openClusters.has(cross.key) && renderBody(cross)}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 

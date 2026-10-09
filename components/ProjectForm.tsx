@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ProjectRow } from "@/lib/sheets";
+import type { ProjectRow, ProjectTipe } from "@/lib/sheets";
 
 export type ProjectFormValues = {
   nama_cluster: string;
@@ -9,6 +9,7 @@ export type ProjectFormValues = {
   spec: string;
   foto_url: string;
   video_url: string;
+  tipe: ProjectTipe;
 };
 
 type ProjectFormProps = {
@@ -49,6 +50,9 @@ export default function ProjectForm({
 }: ProjectFormProps) {
   const [namaCluster, setNamaCluster] = useState(initialData?.nama_cluster ?? "");
   const [daerah, setDaerah] = useState(initialData?.daerah ?? "");
+  // Project baru lahir sebagai cross-sell. Dia baru pantas naik jadi utama
+  // setelah QnA-nya lengkap, dan itu keputusan Den Mas, bukan bawaan form.
+  const [tipe, setTipe] = useState<ProjectTipe>(initialData?.tipe ?? "cross-sell");
   const [spec, setSpec] = useState(initialData?.spec ?? "");
   const [fotoUrls, setFotoUrls] = useState<string[]>(
     parseUrls(initialData?.foto_url ?? "")
@@ -123,6 +127,7 @@ export default function ProjectForm({
         spec: spec.trim(),
         foto_url: fotoUrls.join(", "),
         video_url: videoUrls.join(", "),
+        tipe,
       });
     } finally {
       setSubmitting(false);
@@ -153,6 +158,25 @@ export default function ProjectForm({
         <p className="text-xs text-ink/50">
           Pakai nama yang sama persis untuk mengelompokkan beberapa properti
           dalam satu cluster.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="tipe" className="text-sm font-medium text-ink">
+          Tipe Project
+        </label>
+        <select
+          id="tipe"
+          value={tipe}
+          onChange={(e) => setTipe(e.target.value as ProjectTipe)}
+          className="rounded-md border border-navy/20 bg-white px-3 py-2 text-base outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+        >
+          <option value="utama">Project utama</option>
+          <option value="cross-sell">Project cross-sell</option>
+        </select>
+        <p className="text-xs text-ink/50">
+          Project utama tampil sendiri di daftar. Cross-sell disembunyikan di
+          dalam dropdown project utama sebagai alternatif buat telesales.
         </p>
       </div>
 

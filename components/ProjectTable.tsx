@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ProjectRow } from "@/lib/sheets";
+import type { ProjectRow, ProjectTipe } from "@/lib/sheets";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import ProjectForm, { type ProjectFormValues } from "./ProjectForm";
 
@@ -13,6 +13,7 @@ type ClusterGroup = {
   key: string;
   label: string;
   rows: ProjectRow[];
+  tipe: ProjectTipe;
 };
 
 function parseSpecLines(spec: string): string[] {
@@ -29,6 +30,10 @@ function parseUrls(value: string): string[] {
     .filter(Boolean);
 }
 
+// Satu cluster bisa memuat beberapa baris properti. Cukup satu barisnya
+// ditandai utama untuk membuat seluruh cluster itu utama -- lebih baik
+// cluster terlanjur tampil di daftar atas daripada tersembunyi gara-gara
+// satu baris yang penandanya belum diisi.
 function groupByCluster(rows: ProjectRow[]): ClusterGroup[] {
   const map = new Map<string, ClusterGroup>();
 
@@ -36,9 +41,11 @@ function groupByCluster(rows: ProjectRow[]): ClusterGroup[] {
     const label = row.nama_cluster.trim() || "Tanpa Cluster";
     const key = label.toLowerCase();
     if (!map.has(key)) {
-      map.set(key, { key, label, rows: [] });
+      map.set(key, { key, label, rows: [], tipe: "cross-sell" });
     }
-    map.get(key)!.rows.push(row);
+    const group = map.get(key)!;
+    group.rows.push(row);
+    if (row.tipe === "utama") group.tipe = "utama";
   }
 
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
@@ -63,10 +70,16 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
   const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [openClusters, setOpenClusters] = useState<Set<string>>(new Set());
+  const [crossOpen, setCrossOpen] = useState<Set<string>>(new Set());
 
   useBodyScrollLock(formOpen);
 
   const groups = useMemo(() => groupByCluster(rows), [rows]);
+  const utamaGroups = useMemo(() => groups.filter((g) => g.tipe === "utama"), [groups]);
+  const crossGroups = useMemo(
+    () => groups.filter((g) => g.tipe !== "utama"),
+    [groups]
+  );
   const clusterNames = useMemo(
     () =>
       Array.from(new Set(rows.map((r) => r.nama_cluster.trim()).filter(Boolean))).sort(
@@ -77,6 +90,18 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
 
   function toggleCluster(key: string) {
     setOpenClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function toggleCross(key: string) {
+    setCrossOpen((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
@@ -149,64 +174,51 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg font-semibold text-navy">
-          Database Project ({rows.length})
-        </h2>
-        <button
-          onClick={openCreateForm}
-          className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal/90"
+  function chevron(open: boolean, size: string) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`${size} shrink-0 text-navy/60 transition-transform ${
+          open ? "rotate-180" : ""
+        }`}
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    );
+  }
+
+  // Dipakai dua kali: sebagai kepala project utama, dan sebagai kepala
+  // cluster cross-sell di dalam dropdown -- yang kedua dibuat lebih kecil
+  // supaya hierarkinya kebaca sekilas.
+  function clusterHeader(group: ClusterGroup, nested: boolean) {
+    return (
+      <button
+        onClick={() => toggleCluster(group.key)}
+        className={`flex w-full items-center justify-between text-left hover:bg-navy/5 ${
+          nested ? "px-3 py-2" : "px-4 py-3"
+        }`}
+      >
+        <span
+          className={`font-heading font-semibold text-navy ${nested ? "text-sm" : ""}`}
         >
-          + Tambah Project
-        </button>
-      </div>
+          {group.label}{" "}
+          <span className="text-sm font-normal text-ink/50">
+            ({group.rows.length} properti)
+          </span>
+        </span>
+        {chevron(openClusters.has(group.key), nested ? "h-4 w-4" : "h-5 w-5")}
+      </button>
+    );
+  }
 
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
-
-      {groups.length === 0 ? (
-        <div className="rounded-lg border border-navy/10 bg-white px-4 py-8 text-center text-ink/50">
-          Belum ada data project.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {groups.map((group) => {
-            const isOpen = openClusters.has(group.key);
-            return (
-              <div
-                key={group.key}
-                className="overflow-hidden rounded-lg border border-navy/10 bg-white"
-              >
-                <button
-                  onClick={() => toggleCluster(group.key)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-navy/5"
-                >
-                  <span className="font-heading font-semibold text-navy">
-                    {group.label}{" "}
-                    <span className="text-sm font-normal text-ink/50">
-                      ({group.rows.length} properti)
-                    </span>
-                  </span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`h-5 w-5 shrink-0 text-navy/60 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {isOpen && (
-                  <div className="grid grid-cols-1 gap-4 border-t border-navy/10 p-4 sm:grid-cols-2 lg:grid-cols-3">
+  function renderCards(group: ClusterGroup) {
+    return (
+      <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
                     {group.rows.map((row) => {
                       const fotos = parseUrls(row.foto_url);
                       const videos = parseUrls(row.video_url);
@@ -243,8 +255,11 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
                             <div className="flex-1 text-sm text-ink/70">
                               {row.spec ? (
                                 <ul className="list-disc space-y-0.5 pl-4">
-                                  {parseSpecLines(row.spec).map((line) => (
-                                    <li key={line}>{line}</li>
+                                  {/* Butir spec bisa kembar -- spec Araya
+                                      menyebut "carport" di tipe 1 lantai dan
+                                      2 lantai. Isinya tidak bisa jadi key. */}
+                                  {parseSpecLines(row.spec).map((line, i) => (
+                                    <li key={`${i}-${line}`}>{line}</li>
                                   ))}
                                 </ul>
                               ) : (
@@ -273,11 +288,107 @@ export default function ProjectTable({ initialData }: ProjectTableProps) {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-lg font-semibold text-navy">
+          Database Project ({rows.length})
+        </h2>
+        <button
+          onClick={openCreateForm}
+          className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal/90"
+        >
+          + Tambah Project
+        </button>
+      </div>
+
+      {error && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      {groups.length === 0 ? (
+        <div className="rounded-lg border border-navy/10 bg-white px-4 py-8 text-center text-ink/50">
+          Belum ada data project.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {utamaGroups.map((group) => (
+            <div
+              key={group.key}
+              className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+            >
+              {clusterHeader(group, false)}
+
+              {openClusters.has(group.key) && (
+                <div className="border-t border-navy/10">
+                  {renderCards(group)}
+
+                  {crossGroups.length > 0 && (
+                    <div className="border-t border-navy/10 bg-navy/[0.03] px-4 py-3">
+                      <button
+                        onClick={() => toggleCross(group.key)}
+                        className="flex w-full items-center justify-between text-left"
+                      >
+                        <span className="font-heading text-sm font-semibold text-navy/80">
+                          Project cross-sell{" "}
+                          <span className="font-normal text-ink/50">
+                            ({crossGroups.length})
+                          </span>
+                        </span>
+                        {chevron(crossOpen.has(group.key), "h-4 w-4")}
+                      </button>
+
+                      {crossOpen.has(group.key) && (
+                        <div className="mt-3 flex flex-col gap-2">
+                          {crossGroups.map((cross) => (
+                            <div
+                              key={cross.key}
+                              className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+                            >
+                              {clusterHeader(cross, true)}
+                              {openClusters.has(cross.key) && (
+                                <div className="border-t border-navy/10">
+                                  {renderCards(cross)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Tanpa satu pun project utama, seluruh cross-sell lenyap dari
+              layar. Daripada datanya tidak bisa dijangkau, semuanya tetap
+              ditampilkan datar disertai cara menaikkan salah satunya. */}
+          {utamaGroups.length === 0 && (
+            <>
+              <p className="rounded-lg border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-ink/70">
+                Belum ada project yang ditandai utama. Buka Edit pada salah satu
+                project, lalu pilih Tipe Project = Project utama, supaya yang
+                lain masuk ke dropdown cross-sell miliknya.
+              </p>
+              {crossGroups.map((cross) => (
+                <div
+                  key={cross.key}
+                  className="overflow-hidden rounded-lg border border-navy/10 bg-white"
+                >
+                  {clusterHeader(cross, false)}
+                  {openClusters.has(cross.key) && (
+                    <div className="border-t border-navy/10">{renderCards(cross)}</div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 
