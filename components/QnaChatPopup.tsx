@@ -48,7 +48,11 @@ export default function QnaChatPopup({
   pk,
   onClose,
 }: QnaChatPopupProps) {
-  const [kategoriAktif, setKategoriAktif] = useState<string | null>(null);
+  // Kategori yang sedang dibuka di panel kiri. Lebih dari satu boleh terbuka
+  // sekaligus: telesales sering bolak-balik antara Pricelist dan Lokasi
+  // dalam satu percakapan, dan menutup yang satu untuk membuka yang lain
+  // cuma menambah klik.
+  const [terbuka, setTerbuka] = useState<Set<string>>(new Set());
   const [dibuka, setDibuka] = useState<Dibuka[]>([]);
   const [tersalin, setTersalin] = useState<string | null>(null);
   const [cari, setCari] = useState("");
@@ -117,15 +121,75 @@ export default function QnaChatPopup({
     [milikCluster, cari]
   );
 
-  const pertanyaan = useMemo(
-    () =>
-      kategoriAktif === null
-        ? []
-        : milikCluster.filter(
-            (r) => (r.kategori.trim() || "Lainnya") === kategoriAktif
-          ),
-    [milikCluster, kategoriAktif]
-  );
+  const pertanyaanPerKategori = useMemo(() => {
+    const map = new Map<string, QnaRow[]>();
+    for (const r of milikCluster) {
+      const k = r.kategori.trim() || "Lainnya";
+      const isi = map.get(k) || [];
+      isi.push(r);
+      map.set(k, isi);
+    }
+    return map;
+  }, [milikCluster]);
+
+  function toggleKategori(kunci: string) {
+    setTerbuka((prev) => {
+      const next = new Set(prev);
+      if (next.has(kunci)) next.delete(kunci);
+      else next.add(kunci);
+      return next;
+    });
+  }
+
+  // Satu kategori di panel kiri: tombol bergaris panah, dibuka ke bawah
+  // menampilkan daftar pertanyaannya. Kategori dari PK diberi warna hijau
+  // supaya terbedakan dari kategori entri KB yang ditulis tangan.
+  function itemKategori(
+    kunci: string,
+    label: string,
+    jumlah: number,
+    asal: "pk" | "kb",
+    isi: React.ReactNode
+  ) {
+    const buka = terbuka.has(kunci);
+    return (
+      <div
+        key={kunci}
+        className={`overflow-hidden rounded-lg border ${
+          asal === "pk" ? "border-teal/40 bg-teal/5" : "border-navy/10 bg-white"
+        }`}
+      >
+        <button
+          onClick={() => toggleKategori(kunci)}
+          aria-expanded={buka}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium text-navy hover:bg-navy/5"
+        >
+          <span>
+            {label}{" "}
+            <span className="text-xs font-normal text-ink/40">{jumlah}</span>
+          </span>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-4 w-4 shrink-0 text-navy/50 transition-transform ${
+              buka ? "rotate-180" : ""
+            }`}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        {buka && (
+          <div className="flex flex-col gap-0.5 border-t border-navy/10 bg-white p-1">
+            {isi}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   async function salin(teks: string, tanda: string) {
     try {
@@ -226,244 +290,220 @@ export default function QnaChatPopup({
           </button>
         </div>
 
-        {/* area percakapan */}
-        <div className="flex-1 space-y-4 overflow-y-auto bg-background px-4 py-4">
-          {dibuka.length === 0 ? (
-            <p className="rounded-xl bg-white px-4 py-6 text-center text-sm text-ink/50">
-              Pilih kategori di bawah, lalu pilih pertanyaannya. Jawabannya
-              muncul di sini dalam bentuk gelembung yang tinggal disalin.
-            </p>
-          ) : (
-            dibuka.map((d) => (
-              <div key={d.kunci} className="space-y-2">
-                {/* Sisi mengikuti WhatsApp dari sudut pandang telesales:
-                    KIRI pesan masuk dari customer, KANAN yang akan dikirim
-                    telesales. Jadi telesales melihat persis bentuk
-                    percakapannya nanti sebelum menyalin. */}
-                <div className="flex justify-start">
-                  <p className="max-w-2xl rounded-2xl rounded-bl-sm bg-navy/10 px-4 py-2 text-sm text-navy">
-                    {d.pertanyaan}
-                  </p>
-                </div>
-
-                {d.gelembung.map((g, i) =>
-                  g.foto ? (
-                    <div key={i} className="flex flex-wrap justify-end gap-2">
-                      {(g.fotoUrl ?? fotoProject).length === 0 ? (
-                        <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
-                          Belum ada foto di database project.
-                        </p>
-                      ) : (
-                        (g.fotoUrl ?? fotoProject).map((url) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={url}
-                            src={url}
-                            alt={cluster}
-                            className="h-24 w-24 rounded-lg object-cover"
-                          />
-                        ))
-                      )}
-                    </div>
-                  ) : (
-                    <div key={i} className="flex items-end justify-end gap-2">
-                      <button
-                        onClick={() => salin(g.teks, `${d.kunci}-${i}`)}
-                        className="shrink-0 rounded-md border border-navy/15 bg-white px-2 py-1 text-[11px] font-medium text-navy/70 hover:bg-navy/5"
-                      >
-                        {tersalin === `${d.kunci}-${i}` ? "Tersalin" : "Salin"}
-                      </button>
-                      <p className="max-w-2xl whitespace-pre-wrap rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-ink shadow-sm">
-                        {g.teks}
-                      </p>
-                    </div>
-                  )
-                )}
-
-                {d.gelembung.filter((g) => !g.foto).length > 1 && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => salin(gabungGelembung(d.gelembung), d.kunci)}
-                      className="rounded-md px-2 py-1 text-[11px] font-medium text-teal underline-offset-2 hover:underline"
+        {/* Badan: panel pemilih di KIRI, percakapan di KANAN (permintaan
+            Den Mas, 9 Okt 2026). Di HP lebar layar tidak cukup untuk dua
+            kolom, jadi urutannya ditumpuk: percakapan di atas, pemilih di
+            bawah -- seperti sebelumnya. */}
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          {/* panel pemilih */}
+          <aside className="order-2 flex max-h-[42%] shrink-0 flex-col border-t border-navy/10 bg-white md:order-1 md:max-h-none md:w-80 md:border-r md:border-t-0">
+            <div className="shrink-0 p-3">
+              <div className="relative">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+                <input
+                  type="search"
+                  value={cari}
+                  onChange={(e) => setCari(e.target.value)}
+                  placeholder="Cari jawaban — akses, cicilan…"
+                  className="w-full rounded-lg border border-navy/15 py-2 pl-9 pr-9 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
+                />
+                {cari.length > 0 && (
+                  <button
+                    onClick={() => setCari("")}
+                    aria-label="Hapus pencarian"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink/40 hover:bg-navy/5 hover:text-navy"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      className="h-4 w-4"
                     >
-                      {tersalin === d.kunci
-                        ? "Semua tersalin"
-                        : `Salin semua (${d.gelembung.filter((g) => !g.foto).length} gelembung)`}
-                    </button>
-                  </div>
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
                 )}
               </div>
-            ))
-          )}
-        </div>
+            </div>
 
-        {/* pemilih: cari dulu kalau tahu mau apa, kalau tidak telusuri
-            lewat kategori */}
-        <div className="shrink-0 border-t border-navy/10 bg-white px-4 py-3">
-          <div className="relative mb-3">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <input
-              type="search"
-              value={cari}
-              onChange={(e) => setCari(e.target.value)}
-              placeholder="Cari jawaban — contoh: akses terdekat, cicilan, sertifikat"
-              className="w-full rounded-lg border border-navy/15 py-2 pl-9 pr-9 text-sm outline-none focus:border-teal focus:ring-1 focus:ring-teal"
-            />
-            {cari.length > 0 && (
-              <button
-                onClick={() => setCari("")}
-                aria-label="Hapus pencarian"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink/40 hover:bg-navy/5 hover:text-navy"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {cari.trim().length > 0 ? (
-            <>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
-                {hasilCari.length > 0
-                  ? `${hasilCari.length} jawaban cocok`
-                  : "Tidak ada yang cocok"}
-              </p>
-              <div className="grid max-h-44 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-                {hasilCari.map(({ row }) => (
-                  <button
-                    key={row.id}
-                    onClick={() => buka(row)}
-                    className="rounded-lg border border-navy/10 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/5"
-                  >
-                    {row.pertanyaan_sample.trim() || row.kata_kunci}
-                    <span className="mt-0.5 block text-[11px] text-ink/40">
-                      {row.kategori.trim() || "Lainnya"}
-                    </span>
-                  </button>
-                ))}
-                {hasilCari.length === 0 && (
-                  <p className="text-sm text-ink/40">
-                    Coba kata lain, atau telusuri lewat kategori dengan
-                    mengosongkan kolom pencarian.
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+              {cari.trim().length > 0 ? (
+                <>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
+                    {hasilCari.length > 0
+                      ? `${hasilCari.length} jawaban cocok`
+                      : "Tidak ada yang cocok"}
                   </p>
-                )}
-              </div>
-            </>
-          ) : kategoriAktif === null ? (
-            <>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
-                Kategori pertanyaan
-              </p>
-              <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto">
-                {/* Kategori dari Dashboard PK didahulukan: isinya data terbaru
-                    dan berlaku untuk semua project, sedangkan kategori di
-                    bawahnya berasal dari entri KB yang ditulis tangan. */}
-                {[...kategoriSlot.keys()].map((nama) => (
-                  <button
-                    key={"slot-" + nama}
-                    onClick={() => setKategoriAktif("slot:" + nama)}
-                    className="rounded-full border border-teal/50 bg-teal/10 px-3 py-1.5 text-sm font-medium text-navy hover:bg-teal/20"
-                  >
-                    {nama}{" "}
-                    <span className="text-xs font-normal text-ink/40">
-                      {kategoriSlot.get(nama)!.length}
-                    </span>
-                  </button>
-                ))}
-                <button
-                  onClick={bukaFotoProject}
-                  className="rounded-full border border-gold/50 bg-gold/10 px-3 py-1.5 text-sm font-medium text-navy hover:bg-gold/20"
-                >
-                  {KATEGORI_FOTO}
-                </button>
-                {kategori.map(([nama, jumlah]) => (
-                  <button
-                    key={nama}
-                    onClick={() => setKategoriAktif(nama)}
-                    className="rounded-full border border-navy/15 px-3 py-1.5 text-sm font-medium text-navy hover:bg-navy/5"
-                  >
-                    {nama}{" "}
-                    <span className="text-xs font-normal text-ink/40">{jumlah}</span>
-                  </button>
-                ))}
-                {kategori.length === 0 && (
-                  <p className="text-sm text-ink/40">
-                    Belum ada QnA untuk cluster ini.
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setKategoriAktif(null)}
-                className="mb-2 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-teal"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  className="h-3 w-3"
-                >
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-                {kategoriAktif.replace(/^slot:/, "")}
-              </button>
-              <div className="grid max-h-44 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-                {kategoriAktif.startsWith("slot:") &&
-                  (kategoriSlot.get(kategoriAktif.slice(5)) || []).map(
-                    ({ slot, project }) => (
+                  <div className="flex flex-col gap-1">
+                    {hasilCari.map(({ row }) => (
                       <button
-                        key={slot.id + "-" + project.cluster_id}
-                        onClick={() => bukaSlot(slot, project)}
-                        className="rounded-lg border border-teal/30 bg-teal/5 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/10"
+                        key={row.id}
+                        onClick={() => buka(row)}
+                        className="rounded-lg border border-navy/10 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/5"
                       >
-                        {slot.pertanyaan}
-                        {pk.length > 1 && (
-                          <span className="mt-0.5 block text-[11px] text-ink/40">
-                            {project.nama}
-                          </span>
-                        )}
+                        {row.pertanyaan_sample.trim() || row.kata_kunci}
+                        <span className="mt-0.5 block text-[11px] text-ink/40">
+                          {row.kategori.trim() || "Lainnya"}
+                        </span>
                       </button>
+                    ))}
+                    {hasilCari.length === 0 && (
+                      <p className="text-sm text-ink/40">
+                        Coba kata lain, atau kosongkan pencarian untuk
+                        menelusuri lewat kategori.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink/40">
+                    Kategori pertanyaan
+                  </p>
+
+                  {/* Kategori dari Dashboard PK didahulukan: isinya data
+                      terbaru, sedangkan kategori di bawahnya berasal dari
+                      entri KB yang ditulis tangan. */}
+                  {[...kategoriSlot.entries()].map(([nama, isi]) =>
+                    itemKategori(
+                      "slot:" + nama,
+                      nama,
+                      isi.length,
+                      "pk",
+                      isi.map(({ slot, project }) => (
+                        <button
+                          key={slot.id + "-" + project.cluster_id}
+                          onClick={() => bukaSlot(slot, project)}
+                          className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-teal/10"
+                        >
+                          {slot.pertanyaan}
+                          {pk.length > 1 && (
+                            <span className="block text-[11px] text-ink/40">
+                              {project.nama}
+                            </span>
+                          )}
+                        </button>
+                      ))
                     )
                   )}
-                {pertanyaan.map((row) => (
+
                   <button
-                    key={row.id}
-                    onClick={() => buka(row)}
-                    className="rounded-lg border border-navy/10 px-3 py-2 text-left text-sm text-ink hover:border-teal hover:bg-teal/5"
+                    onClick={bukaFotoProject}
+                    className="flex w-full items-center justify-between rounded-lg border border-gold/50 bg-gold/10 px-3 py-2 text-left text-sm font-medium text-navy hover:bg-gold/20"
                   >
-                    {row.pertanyaan_sample.trim() || row.kata_kunci}
+                    {KATEGORI_FOTO}
                   </button>
-                ))}
-                {pertanyaan.length === 0 && !kategoriAktif.startsWith("slot:") && (
-                  <p className="text-sm text-ink/40">
-                    Belum ada pertanyaan di kategori ini.
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+
+                  {kategori.map(([nama, jumlah]) =>
+                    itemKategori(
+                      nama,
+                      nama,
+                      jumlah,
+                      "kb",
+                      (pertanyaanPerKategori.get(nama) || []).map((row) => (
+                        <button
+                          key={row.id}
+                          onClick={() => buka(row)}
+                          className="w-full rounded-md px-3 py-1.5 text-left text-sm text-ink hover:bg-navy/5"
+                        >
+                          {row.pertanyaan_sample.trim() || row.kata_kunci}
+                        </button>
+                      ))
+                    )
+                  )}
+
+                  {kategori.length === 0 && kategoriSlot.size === 0 && (
+                    <p className="px-1 text-sm text-ink/40">
+                      Belum ada QnA untuk cluster ini.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* area percakapan */}
+          <div className="order-1 min-h-0 flex-1 space-y-4 overflow-y-auto bg-background px-4 py-4 md:order-2">
+            {dibuka.length === 0 ? (
+              <p className="rounded-xl bg-white px-4 py-6 text-center text-sm text-ink/50">
+                Pilih kategori, lalu pilih pertanyaannya. Jawabannya muncul di
+                sini dalam bentuk gelembung yang tinggal disalin.
+              </p>
+            ) : (
+              dibuka.map((d) => (
+                <div key={d.kunci} className="space-y-2">
+                  {/* Sisi mengikuti WhatsApp dari sudut pandang telesales:
+                      KIRI pesan masuk dari customer, KANAN yang akan dikirim
+                      telesales. Jadi telesales melihat persis bentuk
+                      percakapannya nanti sebelum menyalin. */}
+                  <div className="flex justify-start">
+                    <p className="max-w-2xl rounded-2xl rounded-bl-sm bg-navy/10 px-4 py-2 text-sm text-navy">
+                      {d.pertanyaan}
+                    </p>
+                  </div>
+
+                  {d.gelembung.map((g, i) =>
+                    g.foto ? (
+                      <div key={i} className="flex flex-wrap justify-end gap-2">
+                        {(g.fotoUrl ?? fotoProject).length === 0 ? (
+                          <p className="rounded-xl bg-white px-3 py-2 text-xs text-ink/40">
+                            Belum ada foto di database project.
+                          </p>
+                        ) : (
+                          (g.fotoUrl ?? fotoProject).map((url) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={url}
+                              src={url}
+                              alt={cluster}
+                              className="h-24 w-24 rounded-lg object-cover"
+                            />
+                          ))
+                        )}
+                      </div>
+                    ) : (
+                      <div key={i} className="flex items-end justify-end gap-2">
+                        <button
+                          onClick={() => salin(g.teks, `${d.kunci}-${i}`)}
+                          className="shrink-0 rounded-md border border-navy/15 bg-white px-2 py-1 text-[11px] font-medium text-navy/70 hover:bg-navy/5"
+                        >
+                          {tersalin === `${d.kunci}-${i}` ? "Tersalin" : "Salin"}
+                        </button>
+                        <p className="max-w-2xl whitespace-pre-wrap rounded-2xl rounded-br-sm bg-white px-4 py-2.5 text-sm leading-relaxed text-ink shadow-sm">
+                          {g.teks}
+                        </p>
+                      </div>
+                    )
+                  )}
+
+                  {d.gelembung.filter((g) => !g.foto).length > 1 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => salin(gabungGelembung(d.gelembung), d.kunci)}
+                        className="rounded-md px-2 py-1 text-[11px] font-medium text-teal underline-offset-2 hover:underline"
+                      >
+                        {tersalin === d.kunci
+                          ? "Semua tersalin"
+                          : `Salin semua (${d.gelembung.filter((g) => !g.foto).length} gelembung)`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
