@@ -79,7 +79,7 @@ export default function QnaChatPopup({
 
   const pertanyaan = useMemo(
     () =>
-      kategoriAktif === null || kategoriAktif === KATEGORI_FOTO
+      kategoriAktif === null
         ? []
         : milikCluster.filter(
             (r) => (r.kategori.trim() || "Lainnya") === kategoriAktif
@@ -124,7 +124,9 @@ export default function QnaChatPopup({
         ],
       },
     ]);
-    setKategoriAktif(KATEGORI_FOTO);
+    // Sengaja TIDAK memindah kategori aktif: foto dan spec langsung muncul
+    // di percakapan, jadi memindahkan pemilih ke sub-layar kosong hanya
+    // menambah satu klik "kembali" sebelum telesales bisa memilih lagi.
   }
 
   return (
@@ -365,7 +367,7 @@ export default function QnaChatPopup({
                 ))}
                 {pertanyaan.length === 0 && (
                   <p className="text-sm text-ink/40">
-                    Foto dan spesifikasi sudah ditampilkan di atas.
+                    Belum ada pertanyaan di kategori ini.
                   </p>
                 )}
               </div>
